@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "source_repository": "https://github.com/browerbayersong/2026FPGA-Anlu.git",
+  "export_source_commit": "b578b1369aeda30d07ebc7c4b7278f245746fa46",
+  "hardware_build": "final_chip640_seed3_20261030",
+  "hardware_bit_sha256": "33d0b5261a61d8ce3938d22935454ac9271717502599f679872a1dd1e1669b22",
+  "expected_TD": "6.2.168116 (TD 6.2.1)",
+  "device": "EG4S20BG256",
+  "origin": "Official contest examples lab_ex4_tf and lab_ex5_i2s; not original team HDL.",
+  "vendor": [
+    {
+      "file": "sdr_as_ram.enc.v",
+      "original_source": "7_lab_ex_2026_nosoft/lab_ex5_i2s/src/user_source/hdl_source/include/sdr_as_ram.enc.v",
+      "sha256": "767dbdfbd83d42223b77dfa7deab42ce8216a8fd6f6cb41b7e7593d9a345ba57"
+    },
+    {
+      "file": "sdr_init_ref.enc.v",
+      "original_source": "7_lab_ex_2026_nosoft/lab_ex5_i2s/src/user_source/hdl_source/include/sdr_init_ref.enc.v",
+      "sha256": "6da5945f4af793610d0d64c65c7e5d2d1c86ed4c11bc5fdeacd27eb03178b9f6"
+    },
+    {
+      "file": "sdr_wrrd.enc.v",
+      "original_source": "7_lab_ex_2026_nosoft/lab_ex5_i2s/src/user_source/hdl_source/include/sdr_wrrd.enc.v",
+      "sha256": "c7d7fe07d75f66aa88d9f986b3006319c995162434f104f9990664b374cdfdd2"
+    },
+    {
+      "file": "hdmi_1_4b_transmitter_core_wrapper.enc.v",
+      "original_source": "7_lab_ex_2026_nosoft/lab_ex5_i2s/src/user_source/hdl_source/hdmi1.4b_transmitter_core/hdmi_1_4b_transmitter_core_wrapper.enc.v",
+      "sha256": "867e0b0bdd874bc383d00918c9e1be3fe01edf41f343b6a0d73e262776596a63"
+    },
+    {
+      "file": "afifo_16_32_256.tcl",
+      "original_source": "7_lab_ex_2026_nosoft/lab_ex5_i2s/src/user_source/hdl_source/IP/afifo_16_32_256.tcl",
+      "sha256": "5807155b00f2f749328339e01a85b4bb836f91598286dd167513836b60af33db"
+    },
+    {
+      "file": "afifo_32_16_256.tcl",
+      "original_source": "7_lab_ex_2026_nosoft/lab_ex5_i2s/src/user_source/hdl_source/IP/afifo_32_16_256.tcl",
+      "sha256": "5807155b00f2f749328339e01a85b4bb836f91598286dd167513836b60af33db"
+    }
+  ],
+  "project_files": {
+    "afifo_16_32_256.tcl": "5807155b00f2f749328339e01a85b4bb836f91598286dd167513836b60af33db",
+    "afifo_32_16_256.tcl": "5807155b00f2f749328339e01a85b4bb836f91598286dd167513836b60af33db",
+    "build.tcl": "40b19bb4ccda0e84d2a60e818b8029329575aa3a9ffe58bfca135f24633b444e",
+    "config.vh": "4608757595c55b463fee91e6550a48c3a9bb17ef91d1710e0d6b1ee22c7bd5dd",
+    "fonts/ascii_8x8.vh": "3968461c1584406fd0a469f5e1e650970a1623bd0b56a59c7ddc368b08e30732",
+    "fonts/menu_cn.vh": "a58746bbd90aab145fc0c2c2aba557580d8e000dc992e31566be9f4c1735fafb",
+    "generate_bit.tcl": "8ee559d1ca2bfbb9e4bd2dd7456eba658fac442369edeb3c353dcb89d202b784",
+    "global_def.v": "4608757595c55b463fee91e6550a48c3a9bb17ef91d1710e0d6b1ee22c7bd5dd",
+    "hd720_reference.v": "3b5046a66e2392fa021f072ccd2dac430f1f0ac72bce7a2dd619434e16639b6b",
+    "hdmi_1_4b_transmitter_core_wrapper.enc.v": "867e0b0bdd874bc383d00918c9e1be3fe01edf41f343b6a0d73e262776596a63",
+    "ip.v": "50d1c5e449a1d90176005269d2d63c417a20fe0145861baad1bcab66523a12de",
+    "player720_candidate.sdc": "66b54b42dc52f474fb7497ed2ad35fd48b51dcb1cae547e55f83bcbb4d063223",
+    "probe/hd720_composite.v": "e7a338af1ffffaa7f7866969e1763e40b81f825ee9d9eddefa3c9f77fbc51484",
+    "probe/hd720_frame_scanout.v": "67f83cd4a42358982d7bb25b734cfd7430540edabdaa96dfb09a07849aac2318",
+    "probe/hd720_pll.v": "27b050254ac3b497b768c6b47c840847bf7f49c4011869280e8ecc993bdf9e68",
+    "probe.adc": "15c20aed24e84100080e6e2616d4aa18d0ce4d227b2a77f0463df45c0b190b17",
+    "probe.al": "2345f3bb23b16dc19f8faf0ef925c4db2bf71547bc9543118ed044e8ce516de7",
+    "probe.sdc": "5741618a69a370a88ab26484e2547faf69793c5d9b7812c609da675fa8113439",
+    "reference/stream_scaler.v": "0b5fc226dcf042b96db56f88647e6fac2de12684ec6cc43780fd9a571d2fa93d",
+    "scene/menu_extra_cn.vh": "d6af6106f5dd40145e3956b729e4451fb509ce0fc96b9bad090e0f9b78765d1a",
+    "scene/menu_font_rom.vh": "8e6f9a8706b92fb82b1437fce3472f22b5fe7dbb06891247a989e009c71bfc88",
+    "scene/night_city_body.vh": "66c30f85a6762640c92006b1a171057214a5d9f28145fcf6ba5f5c66e742e19c",
+    "scene/night_city_scene.vh": "cd79a035903cc1f05c6ee36b071a771aa37c316a321850b2092d664ca2ea5f1f",
+    "scene/night_tiles_rom.vh": "73319a00efa8315b7fcaa28142e0ebc665c5537e910810e0997046b4baec749d",
+    "scene/scene_control.vh": "c2bc0816140d0c52d8f37f5abf3c06f281c3fb6524dc23fe357db4f044533a5b",
+    "scene/scene_title_cn.vh": "cf74bd16b9e91182202b2c66b34f2bbc32ac7dbb300dc1aae26ca9273fc661d4",
+    "scene/sdram_refresh_control.vh": "f8e252d48829caaad24d2c5d3c823850176a909c03c588038e7d95f476ab395a",
+    "scene/showcase_subtitle_logic.vh": "ce78d1f2f9ad97bea36ec79da3b2d4cd459c69785064dc4c1dd4d761a7f279ec",
+    "scene/video_adjust_osd_body.vh": "8645fc699c9a92a61b3b6763660e6fd27155c0c79416103660e84e896eea49d3",
+    "sd.v": "562ca3c637e5f12246905ed911cb88e0b2efa1a612ff6b1898df8db3530c352c",
+    "sdr_as_ram.enc.v": "767dbdfbd83d42223b77dfa7deab42ce8216a8fd6f6cb41b7e7593d9a345ba57",
+    "sdr_init_ref.enc.v": "6da5945f4af793610d0d64c65c7e5d2d1c86ed4c11bc5fdeacd27eb03178b9f6",
+    "sdr_wrrd.enc.v": "c7d7fe07d75f66aa88d9f986b3006319c995162434f104f9990664b374cdfdd2",
+    "top.v": "5ca21edbe2eeaf6405ce2fea83fb3213f56c2446e151c49ed14ba5fc012f64b2",
+    "video.v": "6146bfe16d6efcc6aec820d048818110009b28b0f35d2a64bb184d096ebb643a",
+    "../user_source/hdl_source/include/global_def.v": "4608757595c55b463fee91e6550a48c3a9bb17ef91d1710e0d6b1ee22c7bd5dd"
+  },
+  "media": {
+    "directory": "SHOW640",
+    "images": [
+      {
+        "index": 0,
+        "card_name": "N01WATCH.BMP",
+        "bytes": 2764854,
+        "sha256": "cc44c0a6ed8eae4b04ad542bbb618b19767b4f53888f1db9a292ea27fa98d54a",
+        "size": [
+          1280,
+          720
+        ]
+      },
+      {
+        "index": 1,
+        "card_name": "N02DRINK.BMP",
+        "bytes": 2764854,
+        "sha256": "bb4b7ee53d57c801c6a0753c046cd78c07756d7eb3ce74b0919ed801b3e013ca",
+        "size": [
+          1280,
+          720
+        ]
+      },
+      {
+        "index": 2,
+        "card_name": "N03CHIP.BMP",
+        "bytes": 921654,
+        "sha256": "b03b0610354a4446d7de7dc83cac23eb1f3b3a759b4cbe7dd7e67bef170254ba",
+        "size": [
+          640,
+          480
+        ]
+      },
+      {
+        "index": 3,
+        "card_name": "N04RAIN.BMP",
+        "bytes": 4608054,
+        "sha256": "9e59627dff977521e66d8d06f3f24c4cc56c84f7abd9ce054eb6a3888ddb89a7",
+        "size": [
+          1920,
+          800
+        ]
+      },
+      {
+        "index": 4,
+        "card_name": "N05LANE.BMP",
+        "bytes": 6220854,
+        "sha256": "bd8e9a608592552d55bd9d08660585817a028505b28efce024d01772245e2988",
+        "size": [
+          1920,
+          1080
+        ]
+      },
+      {
+        "index": 5,
+        "card_name": "N06LEARN.BMP",
+        "bytes": 691254,
+        "sha256": "cdb8a96846ec366be56e29d73d1e24daf0e6cb4d1fcb5d200e9975ac5a9496ee",
+        "size": [
+          640,
+          360
+        ]
+      }
+    ]
+  }
+}

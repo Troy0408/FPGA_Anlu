@@ -1,0 +1,184 @@
+% Editor：KIALA9
+
+\ProvidesPackage{GDUTReport}
+
+% 基础宏包
+\RequirePackage[UTF8, scheme=plain]{ctex}
+\RequirePackage{array, longtable, adjustbox, graphicx, geometry}
+\RequirePackage{titlesec, fancyhdr, booktabs, listings, xcolor, tcolorbox}
+% subfigure 负责定义图表目录计数器，避免 tocloft 重复定义。
+\RequirePackage[titles,subfigure]{tocloft}
+\RequirePackage{amsmath, hyperref, tikz, setspace, fontspec, placeins, caption}
+\RequirePackage{subfigure, textcomp}    % 小图、货币符号
+
+% 页面布局设置
+\usetikzlibrary{calc}
+\geometry{left=2.58cm, right=2.58cm, top=2.54cm, bottom=2.54cm}
+
+% 自定义颜色
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{integratedblue}{HTML}{193078}
+\definecolor{GDUTred}{HTML}{bb0b00}
+\definecolor{keywordcolor}{rgb}{0.8,0.1,0.5}
+
+% 可固定下划线长度
+\makeatletter
+\newcommand\dlmu[2][4cm]{\hskip1pt\underline{\hb@xt@ #1{\hss#2\hss}}\hskip3pt}
+\newcommand{\subtitle}[1]{\gdef\@subtitle{#1}}
+\newcommand{\name}[1]{\gdef\@name{#1}}
+\newcommand{\thenumber}[1]{\gdef\@thenumber{#1}}
+\newcommand{\major}[1]{\gdef\@major{#1}}
+\newcommand{\class}[1]{\gdef\@class{#1}}
+\newcommand{\team}[1]{\gdef\@team{#1}}
+\newcommand{\teacher}[1]{\gdef\@teacher{#1}}
+\newcommand{\contestvendor}[1]{\gdef\@contestvendor{#1}}
+\newcommand{\contestplatform}[1]{\gdef\@contestplatform{#1}}
+\newcommand{\makecover}{
+    \thispagestyle{empty}
+    \begin{tikzpicture}[remember picture, overlay]
+        % 设定行距
+        \linespread{1.5}\selectfont
+        % 顶部图片
+        \node[anchor=north] at ($(current page.north)+(0,-3.8cm)$) {
+            \includegraphics[width=0.85\textwidth,height=4.8cm,keepaspectratio]{figures/contest-cover.png}
+        };
+
+        % 主标题
+        \node[anchor=north, font=\zihao{-1}\bfseries] at ($(current page.north)+(0,-10.5cm)$) {
+            \@title
+        };
+
+        % 副标题
+        \node[anchor=north, font=\zihao{4}] at ($(current page.north)+(0,-12cm)$) {
+            \textbf{\@subtitle}
+        };
+
+        % 参赛信息表格
+        \node[anchor=north, align=left, font=\kaishu\zihao{4}] at ($(current page.north)+(0,-14cm)$) {
+            \begin{tabular}{r@{\hspace{0.5em}}l}
+                \textbf{参赛厂商：} & \dlmu[7.5cm]{\@contestvendor} \\[0.5cm]
+                \textbf{参赛平台：} & \dlmu[7.5cm]{\@contestplatform}
+            \end{tabular}
+        };
+
+        % 底部图片：与页眉使用同一标识，保留原模板的图片位置。
+        \node[anchor=north] at ($(current page.north)+(0,-24cm)$) {
+            \includegraphics[height=1.2cm,keepaspectratio]{figures/contest-header.png}
+        };
+
+        % 日期
+        \node[anchor=north, font=\zihao{4}\kaishu] at ($(current page.north)+(0,-26cm)$) {
+            \today
+        };
+    \end{tikzpicture}
+    \clearpage
+}
+\makeatother
+
+\newcommand{\tbox}[1]{
+\begin{center}
+\begin{tcolorbox}[colback=gray!10, %gray background
+                  colframe=black, % black frame colour
+                  width=8cm, % Use 8cm total width,
+                  arc=1mm, auto outer arc,
+                  boxrule=0.5pt,
+                 ]
+{#1}
+\end{tcolorbox}
+\end{center}
+}
+
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}   % 表格样式支持
+
+% 标题格式设置
+\captionsetup[table]{labelsep=space} % 表
+\captionsetup[figure]{labelsep=space} % 图
+
+% 代码块样式
+\lstset{
+    breaklines = true,                                   % 自动将长的代码行换行排版
+    extendedchars=false,                                 % 解决代码跨页时，章节标题，页眉等汉字不显示的问题
+    columns=fixed,
+    numbers=left,                                        % 在左侧显示行号
+    basicstyle=\zihao{-5}\ttfamily,
+    numberstyle=\small,
+    frame=none,                                          % 不显示背景边框
+    keywordstyle=\color[RGB]{40,40,255},                 % 设定关键字颜色
+    numberstyle=\footnotesize\color{darkgray},           % 设定行号格式
+    showstringspaces=false,                              % 不显示字符串中的空格
+    frame=shadowbox,                                     % 设置阴影
+    rulesepcolor=\color{red!20!green!20!blue!20},        % 阴影颜色
+    basewidth=0.6em,
+    tabsize=4,
+    commentstyle=\color{codegreen}, % 注释样式
+    stringstyle=\color{orange}, % 字符串样式
+    numberstyle=\color{gray}, % 设置数字颜色
+    showstringspaces=false, % 不显示字符串中的空格
+    extendedchars=true, % 支持扩展字符
+}
+
+% Verilog代码引用样式
+\lstdefinestyle{Verilog}
+{
+    language=Verilog,
+    title={\texttt{Verilog Example}},
+    keywords=[1]{module, endmodule, input, output,  reg, always, begin, end, if, else, case, casex, endcase, assign},
+    keywordstyle=[1]\color{blue}\bfseries,
+    keywords=[2]{and, or, nand, nor, xor, xnor, buf, wire, not},
+    keywordstyle=[2]\color{red},
+    keywords=[3]{function, endfunction},
+    keywordstyle=[3]\color{purple},
+    sensitive=true,
+    morecomment=[l][commentstyle]{//},
+    morecomment=[s]{/*}{*/}, % 块注释
+    commentstyle=\color{codegreen}, % 注释风格
+    morestring=[b]", % 字符串
+    morecomment=[l][commentstyle]{'},
+    morecomment=[l][commentstyle]{"},
+}
+
+% 页眉页脚设置
+\makeatletter
+\setlength{\headheight}{1.5cm}
+% 页眉下移以匹配 Word 模板，同时保持正文原有的顶部位置。
+\setlength{\headsep}{0.345cm}
+\addtolength{\topmargin}{0.105cm}
+% 正文页眉的左右文字各占 LOGO 两侧的空间。
+\newlength{\ContestHeaderSideWidth}
+\setlength{\ContestHeaderSideWidth}{0.5\textwidth}
+\addtolength{\ContestHeaderSideWidth}{-3.408cm}
+
+% 使用同一个部分的末尾标记，防止一页内切换部分时左右标题不一致。
+\renewcommand{\sectionmark}[1]{\markboth{\thesection}{#1}}
+\renewcommand{\subsectionmark}[1]{}
+\newcommand{\ContestLastSectionTitle}{%
+  \ifdefined\LastMark
+    \LastMark{2e-right}%
+  \else
+    \expandafter\@rightmark\botmark\@empty\@empty
+  \fi
+}
+
+% 摘要、目录等正文之前的页面：无页眉，保留页脚页码。
+\fancypagestyle{contestfront}{
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+% 正文页面：左侧部分编号，右侧对应的部分名称。
+\fancypagestyle{contestmain}{
+  \fancyhf{}
+  \fancyhead[L]{\adjustbox{max width=\ContestHeaderSideWidth}{\footnotesize \fangsong \leftmark}}
+  \fancyhead[C]{\includegraphics[width=6.516cm,keepaspectratio]{figures/contest-header.png}}
+  \fancyhead[R]{\adjustbox{max width=\ContestHeaderSideWidth}{\footnotesize \fangsong \ContestLastSectionTitle}}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+\pagestyle{contestfront}
+\makeatother

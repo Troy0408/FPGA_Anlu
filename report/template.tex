@@ -1,0 +1,73 @@
+% !TeX program = xelatex
+% FPGA 创新设计竞赛作品设计文档模板
+
+\documentclass[12pt, a4paper]{ctexart}
+\usepackage{GDUTReport}
+\hypersetup{hidelinks}
+
+% 页面布局设置
+\setstretch{1.5} % 设置全局行距为1.5倍
+
+% 字体设置
+\setmainfont{Times New Roman} % 英文正文为Times New Roman
+
+% Word 参考模板使用“第一部分、第二部分……”和 1.1、1.1.1 编号。
+\renewcommand{\thesection}{第\chinese{section}部分}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+% 为“第一部分”等较长编号留出足够宽度，避免目录文字重叠。
+\setlength{\cftsecnumwidth}{5em}
+% 二、三级目录每级递进一个缩进；编号宽度沿用原课程模板。
+\setlength{\cftsubsecindent}{1.5em}
+\setlength{\cftsubsecnumwidth}{2.3em}
+\setlength{\cftsubsubsecindent}{3em}
+\setlength{\cftsubsubsecnumwidth}{3.2em}
+
+% 文档内示意图及待拍摄实物照片的统一样式。
+\usepackage{float}
+\usepackage{enumitem}
+\usetikzlibrary{arrows.meta,positioning,fit}
+% 表格中的斜杠组合整体排版；长信号组按当前列宽等比缩小，避免拆行或越界。
+\newcommand{\tablegroup}[1]{\adjustbox{max width=\linewidth}{\mbox{#1}}}
+\newcommand{\photoplaceholder}[2]{%
+  \begin{figure}[H]\centering
+  \fbox{\begin{minipage}[c][5.2cm][c]{0.90\textwidth}\centering
+  \textbf{图片预留：#1}\par\vspace{0.8em}
+  \parbox{0.82\textwidth}{\small 补充要求：#2}
+  \end{minipage}}
+  \caption{#1}\end{figure}}
+% 封面内容
+\title{赛博美学数字艺术多媒体交互画框}
+\subtitle{《基于安路EG4S20的HDMI多媒体播放系统》}
+\contestvendor{安路科技}
+\contestplatform{基于安路FPGA芯片的自备板卡}
+
+\begin{document}
+
+% 封面
+\pagenumbering{gobble}
+\makecover{}
+
+% 摘要
+\pagenumbering{Roman}
+\section*{摘要}
+\addcontentsline{toc}{section}{摘要}
+\input{body/contest_abstract}
+
+% 目录
+\clearpage
+\tableofcontents
+\clearpage
+
+% 正文
+\pagenumbering{arabic}
+\pagestyle{contestmain}
+\include{body/contest_overview}
+\include{body/contest_system}
+\include{body/contest_results}
+\include{body/contest_summary}
+\include{body/contest_references}
+
+\end{document}

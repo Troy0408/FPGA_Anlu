@@ -1,0 +1,106 @@
+// Existing MIT ASCII glyph function extracted byte-equivalently from rtl/video.v.
+// Danial Chitnis (2007); license retained in rtl/video.v and project sources.
+function [63:0] font_8x8;
+    input [7:0] character;
+    begin
+        case (character)
+            8'h2a: font_8x8 = 64'h00663cff3c660000; // * (team addition: prepared backend)
+            8'h2b: font_8x8 = 64'h0018187e18180000; // +
+            8'h2d: font_8x8 = 64'h0000007e00000000; // -
+            8'h2e: font_8x8 = 64'h0000000000181800; // .
+            8'h2f: font_8x8 = 64'h0003060c18306000; // /
+            8'h30: font_8x8 = 64'h3c666e7666663c00; // 0
+            8'h31: font_8x8 = 64'h1818381818187e00; // 1
+            8'h32: font_8x8 = 64'h3c66060c30607e00; // 2
+            8'h33: font_8x8 = 64'h3c66061c06663c00; // 3
+            8'h34: font_8x8 = 64'h060e1e667f060600; // 4
+            8'h35: font_8x8 = 64'h7e607c0606663c00; // 5
+            8'h36: font_8x8 = 64'h3c66607c66663c00; // 6
+            8'h37: font_8x8 = 64'h7e660c1818181800; // 7
+            8'h38: font_8x8 = 64'h3c66663c66663c00; // 8
+            8'h39: font_8x8 = 64'h3c66663e06663c00; // 9
+            8'h3a: font_8x8 = 64'h0018180018180000; // :
+            8'h3b: font_8x8 = 64'h0018180018183000; // ;
+            8'h3e: font_8x8 = 64'h006030180c183060; // >
+            8'h41: font_8x8 = 64'h183c667e66666600; // A
+            8'h42: font_8x8 = 64'h7c66667c66667c00; // B
+            8'h43: font_8x8 = 64'h3c66606060663c00; // C
+            8'h44: font_8x8 = 64'h786c6666666c7800; // D
+            8'h45: font_8x8 = 64'h7e60607860607e00; // E
+            8'h46: font_8x8 = 64'h7e60607860606000; // F
+            8'h47: font_8x8 = 64'h3c66606e66663c00; // G
+            8'h48: font_8x8 = 64'h6666667e66666600; // H
+            8'h49: font_8x8 = 64'h3c18181818183c00; // I
+            8'h4a: font_8x8 = 64'h1e0c0c0c0c6c3800; // J
+            8'h4b: font_8x8 = 64'h666c7870786c6600; // K
+            8'h4c: font_8x8 = 64'h6060606060607e00; // L
+            8'h4d: font_8x8 = 64'h63777f6b63636300; // M
+            8'h4e: font_8x8 = 64'h66767e7e6e666600; // N
+            8'h4f: font_8x8 = 64'h3c66666666663c00; // O
+            8'h50: font_8x8 = 64'h7c66667c60606000; // P
+            8'h51: font_8x8 = 64'h3c666666663c0e00; // Q
+            8'h52: font_8x8 = 64'h7c66667c786c6600; // R
+            8'h53: font_8x8 = 64'h3c66603c06663c00; // S
+            8'h54: font_8x8 = 64'h7e18181818181800; // T
+            8'h55: font_8x8 = 64'h6666666666663c00; // U
+            8'h56: font_8x8 = 64'h66666666663c1800; // V
+            8'h57: font_8x8 = 64'h6363636b7f776300; // W
+            8'h58: font_8x8 = 64'h66663c183c666600; // X
+            8'h59: font_8x8 = 64'h6666663c18181800; // Y
+            8'h5a: font_8x8 = 64'h7e060c1830607e00; // Z
+            8'h20: font_8x8 = 64'h0000000000000000; // Team ASCII extension
+            8'h21: font_8x8 = 64'h1818181818001800; // Team ASCII extension
+            8'h22: font_8x8 = 64'h6666240000000000; // Team ASCII extension
+            8'h23: font_8x8 = 64'h36367f367f363600; // Team ASCII extension
+            8'h24: font_8x8 = 64'h183e603c067c1800; // Team ASCII extension
+            8'h25: font_8x8 = 64'h62660c1830664600; // Team ASCII extension
+            8'h26: font_8x8 = 64'h386c3876dccc7600; // Team ASCII extension
+            8'h27: font_8x8 = 64'h1818300000000000; // Team ASCII extension
+            8'h28: font_8x8 = 64'h0c18303030180c00; // Team ASCII extension
+            8'h29: font_8x8 = 64'h30180c0c0c183000; // Team ASCII extension
+            8'h2a: font_8x8 = 64'h00663cff3c660000; // Team ASCII extension
+            8'h2c: font_8x8 = 64'h0000000000181830; // Team ASCII extension
+            8'h3c: font_8x8 = 64'h0006183060301806; // Team ASCII extension
+            8'h3d: font_8x8 = 64'h00007e007e000000; // Team ASCII extension
+            8'h3f: font_8x8 = 64'h3c66060c18001800; // Team ASCII extension
+            8'h40: font_8x8 = 64'h3c666e6a6e603c00; // Team ASCII extension
+            8'h5b: font_8x8 = 64'h3c30303030303c00; // Team ASCII extension
+            8'h5c: font_8x8 = 64'h006030180c060300; // Team ASCII extension
+            8'h5d: font_8x8 = 64'h3c0c0c0c0c0c3c00; // Team ASCII extension
+            8'h5e: font_8x8 = 64'h183c660000000000; // Team ASCII extension
+            8'h5f: font_8x8 = 64'h000000000000007e; // Team ASCII extension
+            8'h60: font_8x8 = 64'h30180c0000000000; // Team ASCII extension
+            8'h61: font_8x8 = 64'h00003c063e663e00; // Team ASCII extension
+            8'h62: font_8x8 = 64'h60607c6666667c00; // Team ASCII extension
+            8'h63: font_8x8 = 64'h00003c6660663c00; // Team ASCII extension
+            8'h64: font_8x8 = 64'h06063e6666663e00; // Team ASCII extension
+            8'h65: font_8x8 = 64'h00003c667e603c00; // Team ASCII extension
+            8'h66: font_8x8 = 64'h1c36307c30303000; // Team ASCII extension
+            8'h67: font_8x8 = 64'h00003e66663e067c; // Team ASCII extension
+            8'h68: font_8x8 = 64'h60607c6666666600; // Team ASCII extension
+            8'h69: font_8x8 = 64'h1800381818183c00; // Team ASCII extension
+            8'h6a: font_8x8 = 64'h06000e060666663c; // Team ASCII extension
+            8'h6b: font_8x8 = 64'h6060666c786c6600; // Team ASCII extension
+            8'h6c: font_8x8 = 64'h3818181818183c00; // Team ASCII extension
+            8'h6d: font_8x8 = 64'h0000667f7f6b6300; // Team ASCII extension
+            8'h6e: font_8x8 = 64'h00007c6666666600; // Team ASCII extension
+            8'h6f: font_8x8 = 64'h00003c6666663c00; // Team ASCII extension
+            8'h70: font_8x8 = 64'h00007c66667c6060; // Team ASCII extension
+            8'h71: font_8x8 = 64'h00003e66663e0606; // Team ASCII extension
+            8'h72: font_8x8 = 64'h00007c6660606000; // Team ASCII extension
+            8'h73: font_8x8 = 64'h00003e603c067c00; // Team ASCII extension
+            8'h74: font_8x8 = 64'h30307c3030361c00; // Team ASCII extension
+            8'h75: font_8x8 = 64'h0000666666663e00; // Team ASCII extension
+            8'h76: font_8x8 = 64'h00006666663c1800; // Team ASCII extension
+            8'h77: font_8x8 = 64'h0000636b7f7f3600; // Team ASCII extension
+            8'h78: font_8x8 = 64'h0000663c183c6600; // Team ASCII extension
+            8'h79: font_8x8 = 64'h00006666663e067c; // Team ASCII extension
+            8'h7a: font_8x8 = 64'h00007e0c18307e00; // Team ASCII extension
+            8'h7b: font_8x8 = 64'h0e18187018180e00; // Team ASCII extension
+            8'h7c: font_8x8 = 64'h1818181818181800; // Team ASCII extension
+            8'h7d: font_8x8 = 64'h7018180e18187000; // Team ASCII extension
+            8'h7e: font_8x8 = 64'h0000324c00000000; // Team ASCII extension
+            default: font_8x8 = 64'd0;
+        endcase
+    end
+endfunction
