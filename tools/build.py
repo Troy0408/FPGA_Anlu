@@ -39,7 +39,10 @@ def check_project(spec):
         if not path.is_relative_to(ROOT.resolve()) or not path.is_file():
             raise ValueError('Missing or invalid project input: ' + name)
         if digest(path) != checksum:
-            raise ValueError('Frozen input changed: ' + name)
+            # Git archives store normalized LF; checkout attributes restore CRLF.
+            lf_checksum = hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
+            if lf_checksum != spec.get('project_lf_sha256', {}).get(name):
+                raise ValueError('Frozen input changed: ' + name)
     al = (project / 'probe.al').read_text(encoding='utf-8')
     if re.search(r'<Project\b[^>]*\bPath="([^"]+)"', al).group(1) != '.':
         raise ValueError('Project location must be relative')
