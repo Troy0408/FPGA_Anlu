@@ -1,0 +1,14 @@
+/build/
+__pycache__/
+*.pyc
+*.log
+*.logw
+/report/*.aux
+/report/*.out
+/report/*.toc
+/report/*.xdv
+/report/*.fls
+/report/*.fdb_latexmk
+/report/*.synctex.gz
+/report/template.pdf
+/report/body/*.aux

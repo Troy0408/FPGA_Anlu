@@ -1,0 +1,18 @@
+# Store text as LF in Git; restore reviewed CRLF inputs on checkout.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+project/afifo_16_32_256.tcl text eol=crlf
+project/afifo_32_16_256.tcl text eol=crlf
+project/build.tcl text eol=crlf
+project/config.vh text eol=crlf
+project/global_def.v text eol=crlf
+project/hdmi_1_4b_transmitter_core_wrapper.enc.v text eol=crlf
+project/ip/sources.json text eol=crlf
+# Preserve this generated IP input with its original mixed line endings.
+project/probe/hd720_pll.v -text
+project/sd.v text eol=crlf
+project/sdr_as_ram.enc.v text eol=crlf
+project/sdr_init_ref.enc.v text eol=crlf
+project/sdr_wrrd.enc.v text eol=crlf
+user_source/hdl_source/include/global_def.v text eol=crlf
