@@ -1,48 +1,64 @@
 \section{完成情况及性能参数}
 
 \subsection{整体介绍}
-作品已形成由开发板、TF 卡和 HDMI 显示器组成的完整多媒体展示系统。基础功能、五类拓展功能与四季动态场景集成在同一固化镜像中，全部功能均在实物上正常运行。镜像写入配置 Flash 后，断电再上电，画面与声音自动启动，无需连接电脑。
+作品已形成由开发板、TF 卡和 HDMI 显示器组成的完整多媒体展示系统。基础功能、五类拓展功能与四季动态场景集成在同一固化镜像中，全部功能均在实物上正常运行。镜像写入配置 Flash 后，断电再上电，画面与声音自动启动，无需连接电脑。图\ref{fig:sys-front}为固化镜像断电重新上电后、未连接下载电脑时的系统正面整体运行状态。
 
-\photoplaceholder{系统正面整体展示}{使开发板、TF 卡槽、HDMI 连接和显示器同框；屏幕显示作品的四季夜城或静图，保持画面清晰，避免拍入身份信息。}
-\photoplaceholder{系统斜向整体展示}{从约 45 度拍摄设备布局与线缆连接，保证开发板与显示内容同时可辨，不遮挡板载按键。}
+\begin{figure}[H]\centering
+\includegraphics[width=0.86\textwidth]{figures/photos/系统正面整体展示.jpg}
+\caption{系统正面整体展示（固化镜像上电后运行）}\label{fig:sys-front}
+\end{figure}
 
 \subsection{工程成果}
 
 \subsubsection{硬件成果}
-系统使用 HX4S20C 板载资源构成 FPGA、TF、SDRAM、配置 Flash 和 HDMI 接口。图片和音乐从 TF 卡进入 FPGA，图像经 SDRAM 缓存后与动态场景及各图层合成，经 HDMI 同时送出画面与声音。全部运行时处理在 FPGA 内完成，无需外接处理器。
+系统使用 HX4S20C 板载资源构成 FPGA、TF、SDRAM、配置 Flash 和 HDMI 接口。图片和音乐从 TF 卡进入 FPGA，图像经 SDRAM 缓存后与动态场景及各图层合成，经 HDMI 同时送出画面与声音。全部运行时处理在 FPGA 内完成，无需外接处理器。图\ref{fig:board}给出开发板接口实物及整套设备的连接布局。
 
-\photoplaceholder{开发板与接口实物}{近距离拍摄开发板正面，使芯片、TF 卡槽、HDMI 输出、按键与拨码开关的位置清楚可见。}
+\begin{figure}[H]\centering
+\subfigure[开发板与接口实物]{\includegraphics[width=0.485\textwidth]{figures/photos/开发板与接口实物.jpg}}\hfill
+\subfigure[系统斜向整体展示]{\includegraphics[width=0.485\textwidth]{figures/photos/系统斜向整体展示.jpg}}
+\caption{开发板与系统连接实物}\label{fig:board}
+\end{figure}
 
 \subsubsection{FPGA 逻辑成果}
-FPGA 逻辑涵盖 TF 卡访问与素材解析、双线性缩放、六帧缓存与刷新调度、音频播放与音量处理、图层合成、中文菜单与字幕、四季场景生成和 720p 音视频输出，在 EG4S20 上完成综合、布局布线并全部时序收敛。
-
-\photoplaceholder{工程工具与构建结果界面}{在 TD 工程工具中显示当前作品的器件、主要资源或布局布线结果，截图时保留可辨读的结果区域，裁去本机用户名、路径和与作品无关的信息。}
-
+FPGA 逻辑涵盖 TF 卡访问与素材解析、双线性缩放、六帧缓存与刷新调度、音频播放与音量处理、图层合成、中文菜单与字幕、四季场景生成和 720p 音视频输出，在 EG4S20 上完成综合、布局布线并全部时序收敛。主要资源占用如下表所示。
 \begin{center}\small
 \begin{tabular}{p{4.6cm}p{2.4cm}p{2.4cm}p{3.2cm}}
 \toprule
 资源 & 使用 & 器件容量 & 利用率\\\midrule
-LUT & 16454 & 19600 & 84.0\%\\
-寄存器 & 9007 & 19600 & 46.0\%\\
-SLICE & 8533 & 9800 & 87.1\%\\
+LUT & 17884 & 19600 & 91.2\%\\
+寄存器 & 9878 & 19600 & 50.4\%\\
+SLICE & 9192 & 9800 & 93.8\%\\
 9 Kb RAM 块 & 63 & 64 & 98.4\%\\
 32 Kb RAM 块 & 16 & 16 & 100\%\\
-DSP & 24 & 29 & 82.8\%\\
+DSP & 21 & 29 & 72.4\%\\
 PLL & 4 & 4 & 100\%\\
 \bottomrule
 \end{tabular}
 \end{center}
-片上 RAM 与 PLL 全部用满、LUT 利用率达 84\%，说明作品充分挖掘了 EG4S20 的硬件资源；在如此高的利用率下全部时钟域仍然时序收敛，setup 最差余量 $+0.682$ ns，保证了系统长期稳定运行。
+片上 RAM 与 PLL 全部用满，LUT 利用率 91.2\%。在这样的利用率下，全部时钟域仍然时序收敛，setup 最差余量 $+0.357$ ns，hold 最差余量 $+0.030$ ns。图\ref{fig:td-build}为 Anlogic TD 6.2.1 中目标器件 EG4S20BG256 的工程与资源报告界面。
+
+\begin{figure}[H]\centering
+% 裁去窗口标题栏（避免显示本机用户名与工程路径）及底部空行。
+\includegraphics[width=0.88\textwidth,trim=0 28 0 30,clip]{figures/工程工具与构建结果界面.png}
+\caption{工程工具与构建结果界面}\label{fig:td-build}
+\end{figure}
 
 \subsection{特性成果}
 \subsubsection{基础功能与扩展功能总览}
-\begin{center}\small
-\begin{tabular}{p{2.8cm}>{\raggedright\arraybackslash}p{7.4cm}p{3.0cm}}
+% 总览表允许跨页，避免整表下移在上一页留下大块空白。
+{\small\setstretch{1.1}
+\begin{longtable}{p{2.8cm}>{\raggedright\arraybackslash}p{6.4cm}p{4.0cm}}
 \toprule
 功能 & 作品实现 & 完成情况\\\midrule
+\endfirsthead
+\toprule
+功能 & 作品实现 & 完成情况\\\midrule
+\endhead
+\bottomrule
+\endlastfoot
 图片播放 & TF 卡读取 24 位 BMP，经 SDRAM 缓存后 HDMI 720p 输出 & 已完成，实物运行正常\\
 手动与自动切图 & 按键前后切换；拨码开启自动轮播，周期 \tablegroup{3 / 5 / 15} 秒可选 & 已完成，实物运行正常\\
-音频播放 & 48 kHz 立体声 PCM，HDMI 音频输出，四首曲目菜单选择 & 已完成，实物运行正常\\
+音频播放 & 48 kHz 立体声 PCM WAV，HDMI 音频输出，配套素材四首曲目菜单选择 & 已完成，实物运行正常\\
 固化启动 & 统一镜像写入 Flash，上电自动加载运行 & 已完成，实物运行正常\\
 文字叠加 & 七条中文字幕随\tablegroup{图片 / 场景}切换并滚动显示 & 已完成，实物运行正常\\
 图像转场 & 旧画面淡出至黑、新画面淡入 & 已完成，实物运行正常\\
@@ -50,41 +66,87 @@ PLL & 4 & 4 & 100\%\\
 实时参数调节 & 中文菜单调节亮度、对比度、音量、字幕、轮播等 & 已完成，实物运行正常\\
 音频可视化 & 真实 PCM 驱动主画面 64 柱与街区 12 柱音乐屏 & 已完成，实物运行正常\\
 四季动态场景 & 四景切换、天气灯光实时变化、无缝返回静图 & 已完成，实物运行正常\\
-\bottomrule
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 \subsubsection{图片读取、缩放与轮播}
-系统配置六幅展示图，包括腕表、饮品、芯片、暴雨提示、车道提示及课堂展示。其中芯片图为 $640\times480$、24 位 BMP，系统自动等比缩放到 $480\times360$ 内容区并在两侧补黑，原图比例完整保留；其他尺寸的图片由同一套几何规则自动适配。按键切图与自动轮播都伴随淡出淡入转场，背景音乐持续播放。
+配套素材包含六幅展示图：腕表、饮品、芯片、暴雨提示、车道提示和课堂展示。其中芯片图为 $640\times480$、24 位 BMP，系统自动等比缩放到 $480\times360$ 内容区并在两侧补黑，原图比例完整保留；其他尺寸的图片按同一套几何规则自动适配。按键切图与自动轮播都伴随淡出淡入转场（转场过程见第~\ref{sec:subtitle-fade}~节），背景音乐持续播放。
 
-\photoplaceholder{图片显示与比例适配实物}{拍摄芯片图完整画面及其左右黑边；另拍一幅宽画面素材，能看出显示区域与原始长宽比的关系。}
-\photoplaceholder{手动切图与自动轮播实物}{分别拍摄操作按键／拨码与切换前后的画面，若需说明转场过程，可从实拍视频中选取淡出、黑场和淡入三帧。}
+图\ref{fig:scale}为芯片图的实际显示效果：画面左右两侧为补黑区域，右上角提示原图尺寸 $640\times480$，可见原图长宽比被完整保留。
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.72\textwidth]{figures/photos/图片显示与比例适配实物.jpg}
+\caption{图片显示与比例适配实物（$640\times480$ 芯片图，两侧补黑）}\label{fig:scale}
+\end{figure}
+
+图\ref{fig:switch}给出切图前后的画面：按键手动切换由腕表图切至饮品图，打开 SW1 自动轮播后由饮品图切至芯片图。
+
+\begin{figure}[H]\centering
+\subfigure[手动切图前]{\includegraphics[width=0.485\textwidth]{figures/photos/手动切图前.jpg}}\hfill
+\subfigure[手动切图后]{\includegraphics[width=0.485\textwidth]{figures/photos/手动切图后.jpg}}\\[2pt]
+\subfigure[自动轮播前]{\includegraphics[width=0.485\textwidth]{figures/photos/自动轮播前.jpg}}\hfill
+\subfigure[自动轮播后]{\includegraphics[width=0.485\textwidth]{figures/photos/自动轮播后.jpg}}
+\caption{手动切图与自动轮播实物}\label{fig:switch}
+\end{figure}
 
 \subsubsection{中文菜单与实时参数}
-拨动 SW2 打开中文菜单，方向键选择功能，确认键进入调整；调整结果立即作用于画面或声音。亮度和对比度改变背景像素，音量同时改变声音和音频柱高度，观众可直接观察控制量与效果的对应关系。
+拨动 SW2 打开中文菜单，方向键选择功能，确认键进入调整；调整结果立即作用于画面或声音。亮度和对比度改变背景像素，音量同时改变声音和音频柱高度，观众可直接观察控制量与效果的对应关系。图\ref{fig:menu}中，二级参数页将对比度调整为 150 后，背景画面的明暗层次随之改变。
 
-\photoplaceholder{中文菜单与参数调节实物}{拍摄一级菜单、一个二级参数页及调整前后画面，保证参数文字和背景可同时辨认；必要时分别放置两张照片。}
+\begin{figure}[H]\centering
+\subfigure[一级菜单]{\includegraphics[width=0.485\textwidth]{figures/photos/一级菜单.jpg}}\hfill
+\subfigure[二级菜单调整后的画面]{\includegraphics[width=0.485\textwidth]{figures/photos/二级菜单调整后的画面.jpg}}
+\caption{中文菜单与参数调节实物}\label{fig:menu}
+\end{figure}
 
-\subsubsection{滚动字幕与图像转场}
-每幅静图和四季场景都有对应的中文字幕，切换内容时字幕同步更新并重新滚动，可在菜单中开关。切图时旧画面平滑淡出到黑，再淡入新图，过渡自然流畅。
+\subsubsection{滚动字幕与图像转场}\label{sec:subtitle-fade}
+每幅静图和四季场景都有对应的中文字幕，切换内容时字幕同步更新并重新滚动，可在菜单中开关。图\ref{fig:subtitle}分别为静态图片和动态场景下的底部滚动字幕。
 
-\photoplaceholder{中文字幕与转场实物}{拍摄字幕清晰可读的两幅不同画面；转场可用连续实拍帧展示旧图、黑场与新图，勿用后期效果替代设备输出。}
+\begin{figure}[H]\centering
+\subfigure[静态图片字幕]{\includegraphics[width=0.485\textwidth]{figures/photos/静态图片字幕.jpg}}\hfill
+\subfigure[动态场景字幕]{\includegraphics[width=0.485\textwidth]{figures/photos/动态场景字幕.jpg}}
+\caption{中文滚动字幕实物}\label{fig:subtitle}
+\end{figure}
+
+切图时旧画面逐渐淡出到黑，再淡入新图。图\ref{fig:fade}为一次切图过程中依次截取的三帧设备输出：旧图（数字课堂）逐渐变暗、全黑画面中完成缓存切换、新图（未来腕表）逐渐亮起。
+
+\begin{figure}[H]\centering
+\subfigure[淡出]{\includegraphics[width=0.322\textwidth]{figures/photos/淡出.jpg}}\hfill
+\subfigure[黑场]{\includegraphics[width=0.322\textwidth]{figures/photos/黑场.jpg}}\hfill
+\subfigure[淡入]{\includegraphics[width=0.322\textwidth]{figures/photos/淡入.jpg}}
+\caption{淡出—黑场—淡入图像转场过程}\label{fig:fade}
+\end{figure}
 
 \subsubsection{音频播放与音频可视化}
-系统播放 48 kHz 立体声音乐，可在菜单中选择四首曲目。主画面底部 64 根幅度柱随音乐节奏起伏滚动，夜城街区的音乐屏同步跳动；调节音量时，声音与柱高一同变化。
+系统播放 48 kHz 立体声音乐，使用配套素材时可在菜单中选择四首曲目。主画面底部 64 根幅度柱随音乐节奏起伏滚动，夜城街区的音乐屏同步跳动；调节音量时，声音与柱高一同变化。如图\ref{fig:audio}所示，音量为 0 时底部音频柱消失，音量调至 70 后音频柱随音乐明显起伏。
 
-\photoplaceholder{选曲与音频可视化实物}{画面同时包含曲目菜单或播放画面与音频柱；可另外拍摄静音和恢复音量两个状态，并通过实录声音保存听音证据。}
+\begin{figure}[H]\centering
+\subfigure[静音状态（音量 0）]{\includegraphics[width=0.485\textwidth]{figures/photos/静音状态.jpg}}\hfill
+\subfigure[高音量状态（音量 70）]{\includegraphics[width=0.485\textwidth]{figures/photos/高音量状态.jpg}}
+\caption{音量调节与音频可视化实物}\label{fig:audio}
+\end{figure}
 
 \subsubsection{四季动态夜城}
-拨动 SW3 进入动态场景，方向键在雨夜霓虹、黄昏雷云、薄雾深夜和飘雪清晨之间切换。同一座城市在四季中呈现截然不同的色彩与天气：雨线、闪电、雾带、雪粒持续运动，霓虹招牌呼吸闪烁，街区音乐屏随音乐跳动。再次拨动 SW3 即回到原静态图片，音乐全程不中断。
+拨动 SW3 进入动态场景，方向键在雨夜霓虹、黄昏雷云、薄雾深夜和飘雪清晨之间切换。同一座城市在四个场景中呈现不同的色彩与天气：雨线、闪电、雾带、雪粒持续运动，霓虹招牌呼吸闪烁，街区音乐屏随音乐跳动。再次拨动 SW3 即回到原静态图片，音乐全程不中断。图\ref{fig:seasons-photo}以相同机位记录四种场景的实际输出。
 
-\photoplaceholder{四季动态场景实物组图}{以相同机位分别拍摄四种场景；每张图保留清晰的屏幕边界，画面能区分雨、云、雾和雪的视觉变化。}
-\photoplaceholder{街区细节与音乐联动实物}{近拍 NIGHT CITY 广告屏、店铺招牌、灯带及音频小屏；以视频或不同时间的实拍帧记录动态变化。}
+\begin{figure}[H]\centering
+\subfigure[雨夜霓虹]{\includegraphics[width=0.485\textwidth]{figures/photos/雨夜霓虹.jpg}}\hfill
+\subfigure[黄昏雷云]{\includegraphics[width=0.485\textwidth]{figures/photos/黄昏雷云.jpg}}\\[2pt]
+\subfigure[薄雾深夜]{\includegraphics[width=0.485\textwidth]{figures/photos/薄雾深夜.jpg}}\hfill
+\subfigure[飘雪清晨]{\includegraphics[width=0.485\textwidth]{figures/photos/飘雪清晨.jpg}}
+\caption{四季动态场景实物}\label{fig:seasons-photo}
+\end{figure}
+
+图\ref{fig:street}为街区细节近景：NIGHT CITY 广告牌与店铺招牌呼吸闪烁，楼体灯带勾勒轮廓，街区音频小屏随音乐跳动。
+
+\begin{figure}[H]\centering
+\subfigure[NIGHT CITY 广告牌]{\includegraphics[width=0.322\textwidth]{figures/photos/街区细节NIGHTCITY广告牌.jpg}}\hfill
+\subfigure[店铺招牌]{\includegraphics[width=0.322\textwidth]{figures/photos/店铺招牌.jpg}}\hfill
+\subfigure[灯带及音频小屏]{\includegraphics[width=0.322\textwidth]{figures/photos/灯带及音频小屏.jpg}}
+\caption{街区细节与音乐联动实物}\label{fig:street}
+\end{figure}
 
 \subsubsection{仿真验证结果}
-四季场景的 28 帧 RTL 输出与独立参考模型逐像素一致，天气变化和音频柱历史符合设计；字幕验证覆盖全部七条文案和 214 个字形；$640\times480$ 输入的缩放结果在全部 230400 个画布像素上与模型的最大通道偏差仅为 1。仿真、布局布线和实物运行三级验证共同确认了设计的正确性。
+四季场景的 28 帧 RTL 输出与独立参考模型逐像素一致，天气变化和音频柱历史符合设计；字幕验证覆盖全部七条文案和 214 个字形；$640\times480$ 输入的缩放结果在全部 230400 个画布像素上与模型的最大通道偏差仅为 1。根目录查找与文件格式检查另有 66 项 FAT32 镜像回归，全部通过。仿真、布局布线和实物运行三级验证均已通过。
 
 \subsubsection{固化与上电运行}
-最终镜像写入配置 Flash 并通过自动校验。断电后重新上电，无需重新下载或按复位键，系统自动完成素材加载，画面与声音正常启动，全部功能均可在该镜像上直接使用。
-
-\photoplaceholder{固化上电后的运行实物}{拍摄上电运行的开发板与显示器；保留不连接下载电脑的正常使用画面，条件允许时用连续视频补充断电、上电与启动过程。}
+最终镜像写入配置 Flash 并通过自动校验。断电后重新上电，无需重新下载或按复位键，系统自动完成素材加载，画面与声音正常启动，全部功能均可在该镜像上直接使用。上电后的独立运行状态见图\ref{fig:sys-front}，本节其余实物照片均在同一固化镜像下拍摄。

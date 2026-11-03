@@ -59,42 +59,6 @@ def check_project(spec):
     return len(expected)
 
 
-def configure_card(work, drive, spec):
-    """Read the staged FAT32 card; edit only the disposable build snapshot."""
-    from inspect_showcase_card import Fat32
-    if not re.fullmatch('[A-Za-z]:', drive):
-        raise ValueError('Use one Windows volume letter, for example E:')
-    fs = Fat32(drive)
-    try:
-        folders = [e for e in fs.entries(fs.root)
-                   if e['directory'] and e['name'] == spec['media']['directory']]
-        if len(folders) != 1:
-            raise ValueError('Expected one SHOW640 directory on the card')
-        entries = {e['name']: e for e in fs.entries(folders[0]['cluster']) if not e['directory']}
-        images = []
-        for expected in spec['media']['images']:
-            actual = fs.file(entries[expected['card_name']])
-            if not actual['contiguous'] or actual['bytes'] != expected['bytes'] or actual['sha256'] != expected['sha256']:
-                raise ValueError('Card file differs or is fragmented: ' + expected['card_name'])
-            if not 0 <= actual['first_card_lba'] <= actual['last_card_lba'] < 2**32:
-                raise ValueError('Card address is outside the 32-bit sector range')
-            images.append(actual)
-        ordered = sorted(images, key=lambda e: e['first_card_lba'])
-        if any(a['last_card_lba'] >= b['first_card_lba'] for a, b in zip(ordered, ordered[1:])):
-            raise ValueError('Overlapping image allocations')
-    finally:
-        fs.f.close()
-    top_path = work / 'top.v'
-    text = top_path.read_text(encoding='utf-8')
-    for index, image in enumerate(images):
-        text, count = re.subn(r"(\.IMAGE_SECTOR" + str(index) + r"\(32'd)\d+(\))",
-                              lambda match: match[1] + str(image['first_card_lba']) + match[2], text)
-        if count != 1:
-            raise ValueError('Expected exactly one image address parameter')
-    top_path.write_text(text, encoding='utf-8', newline='\n')
-    return dict(read_only=True, directory='SHOW640', images=images)
-
-
 def run_td(executable, script, work, log):
     with log.open('wb') as stream:
         result = subprocess.run([str(executable), script], cwd=work, stdout=stream,
@@ -110,8 +74,8 @@ def main():
     parser.add_argument('--check', action='store_true', help='Check input hashes and local references only')
     parser.add_argument('--td-bin', default=os.environ.get('TD_BIN') or os.environ.get('PATHTD'))
     parser.add_argument('--run-name', default='player_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
-    parser.add_argument('--card-drive', help='Read-only audit of a new card and remap the build snapshot')
     parser.add_argument('--generate-bit', action='store_true', help='Generate a bit after a successful route')
+    parser.add_argument('--place-seed', type=int, default=3, help='Placement seed (default: 3); recorded in inputs.json')
     args = parser.parse_args()
     spec = json.loads((ROOT / 'project/ip/sources.json').read_text(encoding='utf-8'))
     count = check_project(spec)
@@ -120,6 +84,8 @@ def main():
         return
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}', args.run_name):
         parser.error('Run name must contain only ASCII letters, digits, underscores and hyphens')
+    if not 0 <= args.place_seed <= 2147483647:
+        parser.error('Placement seed must be between 0 and 2147483647')
     executable = find_td(args.td_bin)
     out = ROOT / 'build' / args.run_name
     out.parent.mkdir(exist_ok=True)
@@ -130,13 +96,15 @@ def main():
     # The original vendor preamble includes ../user_source/.../global_def.v.
     shutil.copytree(ROOT / 'user_source', out / 'user_source')
     record = dict(device=spec['device'], original_hardware_bit_sha256=spec['hardware_bit_sha256'],
-                  source_inputs=spec['project_files'], strict_signoff=False, board_programmed=False)
-    if args.card_drive:
-        record['card_readonly_audit'] = configure_card(work, args.card_drive, spec)
-        record['remapped_top_sha256'] = digest(work / 'top.v')
+                  source_inputs=spec['project_files'], place_seed=args.place_seed,
+                  strict_signoff=False, board_programmed=False)
     (out / 'inputs.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print('Running TD synthesis, placement, routing and hold repair...', flush=True)
-    text = run_td(executable, 'build.tcl', work, out / 'td.log')
+    # Pass options through a separate driver so frozen project files remain
+    # byte-for-byte identical to the checked inputs throughout the build.
+    driver = work / 'build_driver.tcl'
+    driver.write_text(f'set build_place_seed {args.place_seed}\nsource build.tcl\n', encoding='utf-8')
+    text = run_td(executable, driver.name, work, out / 'td.log')
     if 'DISPLAY_RESOURCE_DONE' not in text or not (work / 'probe_route.db').is_file():
         raise RuntimeError('TD did not complete the build script')
     timing = (work / 'probe.timing').read_text(encoding='utf-8', errors='replace')

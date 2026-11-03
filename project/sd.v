@@ -1004,15 +1004,21 @@ reg [9:0] received;
 reg header_read, scanning, cache_valid;
 reg [7:0] sector_ram[0:511];
 reg [7:0] byte_q;
-reg [31:0] cache_lba, base_sector, scan_sector, source_pos;
+reg [31:0] cache_lba, base_sector, scan_sector;
+reg [23:0] source_pos;
 reg [15:0] signature, planes, bits;
 reg [31:0] file_len, pixel_offset, dib_size, source_width, source_height, compression;
-reg [31:0] abs_height, stride, pixel_end;
+reg [31:0] abs_height;
+// Accepted inputs are <=1920x1080, with <=1 MiB header and <=8 MiB file.
+// Keep the full header fields for rejection, but size pixel arithmetic to
+// those validated limits instead of inferring 32x32 multipliers.
+reg [12:0] stride;
+reg [24:0] pixel_end;
 reg [10:0] fit_w, fit_h, src_w, src_h, effective_w, effective_h;
 assign loaded_width={5'd0,src_w};
 assign loaded_height={5'd0,src_h};
 reg [10:0] row, column;
-reg [31:0] row_pos;
+reg [23:0] row_pos;
 reg [1:0] channel;
 reg [23:0] input_pixel;
 reg input_valid;
@@ -1044,12 +1050,23 @@ always @(posedge clk or posedge rst)
 // Shared 32-cycle unsigned divider: no combinational variable division.
 reg div_start;
 reg [31:0] numerator, denominator;
-reg [31:0] width_product, height_product;
+reg [21:0] width_product, height_product;
 reg width_limited;
-reg [31:0] scale_base, scale_round, scale_den;
+reg [24:0] scale_base;
+reg [10:0] scale_round, scale_den;
+wire [23:0] source_pixel_bytes=stride*abs_height[10:0];
+wire [10:0] last_row_index=src_h-11'd1;
+wire [23:0] last_row_offset=last_row_index*stride;
 wire [31:0] quotient;
 wire div_done;
 e03_unsigned_divider divider(clk,rst,div_start,numerator,denominator,quotient,div_done);
+// Width settles during geometry setup, many cycles before scaler_reset is
+// released in ACK_LOW. Register this last-index conversion so its subtract
+// carry chain is not also on the scaler RAM address/comparison path.
+reg [10:0] scaler_input_last_x;
+always @(posedge clk) begin
+    scaler_input_last_x<=effective_w-11'd1;
+end
 e03_streamScaler #(.DATA_WIDTH(8),.CHANNELS(3),.INPUT_X_RES_WIDTH(11),
     .INPUT_Y_RES_WIDTH(11),.OUTPUT_X_RES_WIDTH(11),.OUTPUT_Y_RES_WIDTH(11),
     .BUFFER_SIZE(4)) scaler(
@@ -1057,7 +1074,7 @@ e03_streamScaler #(.DATA_WIDTH(8),.CHANNELS(3),.INPUT_X_RES_WIDTH(11),
     .dIn(input_pixel),.dInValid(input_valid),.nextDin(input_ready),
     .dOut(scaled_pixel),.dOutValid(scaled_valid),.nextDout(request_pixel),
     .doutAccepted(accepted),.inputDiscardCnt(8'd0),
-    .inputXRes(effective_w-11'd1),.inputYRes(effective_h-11'd1),
+    .inputXRes(scaler_input_last_x),.inputYRes(effective_h-11'd1),
     .outputXRes(fit_w-11'd1),.outputYRes(fit_h-11'd1),
     .xScale(scale_x),.yScale(scale_y),.leftOffset(25'd0),
     .topFracOffset(14'd0),.nearestNeighbor(1'b0));
@@ -1137,14 +1154,16 @@ always @(posedge clk or posedge rst) begin
                 sd_sec_read<=0;received<=received+1'b1;
                 if(header_read) case(received)
                     0:signature[7:0]<=sd_sec_read_data;1:signature[15:8]<=sd_sec_read_data;
-                    2,3,4,5:file_len[(received-2)*8+:8]<=sd_sec_read_data;
-                    10,11,12,13:pixel_offset[(received-10)*8+:8]<=sd_sec_read_data;
-                    14,15,16,17:dib_size[(received-14)*8+:8]<=sd_sec_read_data;
-                    18,19,20,21:source_width[(received-18)*8+:8]<=sd_sec_read_data;
-                    22,23,24,25:source_height[(received-22)*8+:8]<=sd_sec_read_data;
+                    // These fields arrive little-endian in four consecutive
+                    // bytes. Shifting avoids a variable-index write decoder.
+                    2,3,4,5:file_len<={sd_sec_read_data,file_len[31:8]};
+                    10,11,12,13:pixel_offset<={sd_sec_read_data,pixel_offset[31:8]};
+                    14,15,16,17:dib_size<={sd_sec_read_data,dib_size[31:8]};
+                    18,19,20,21:source_width<={sd_sec_read_data,source_width[31:8]};
+                    22,23,24,25:source_height<={sd_sec_read_data,source_height[31:8]};
                     26:planes[7:0]<=sd_sec_read_data;27:planes[15:8]<=sd_sec_read_data;
                     28:bits[7:0]<=sd_sec_read_data;29:bits[15:8]<=sd_sec_read_data;
-                    30,31,32,33:compression[(received-30)*8+:8]<=sd_sec_read_data;
+                    30,31,32,33:compression<={sd_sec_read_data,compression[31:8]};
                     default:;
                 endcase
             end
@@ -1156,13 +1175,13 @@ always @(posedge clk or posedge rst) begin
         end
         HEADER: begin
             abs_height<=source_height[31] ? (~source_height+1'b1) : source_height;
-            stride<=(source_width*3+3)&32'hfffffffc;
+            stride<=({2'd0,source_width[10:0]}*13'd3+13'd3)&13'h1ffc;
             state<=CHECK;
         end
         CHECK: begin
-            pixel_end<=pixel_offset+stride*abs_height;
-            width_product<=source_width*CANVAS_HEIGHT;
-            height_product<=abs_height*CANVAS_WIDTH;
+            pixel_end<={4'd0,pixel_offset[20:0]}+{1'b0,source_pixel_bytes};
+            width_product<=source_width[10:0]*CANVAS_HEIGHT;
+            height_product<=abs_height[10:0]*CANVAS_WIDTH;
             state<=FIT_START;
         end
         FIT_START: begin
@@ -1188,9 +1207,9 @@ always @(posedge clk or posedge rst) begin
                 effective_h<=abs_height<3 ? 11'd3 : abs_height[10:0];
                 width_limited<=width_product>=height_product;
                 if(width_product>=height_product) begin
-                    fit_w<=CANVAS_WIDTH; numerator<=height_product;denominator<=source_width;
+                    fit_w<=CANVAS_WIDTH; numerator<=height_product;denominator<=source_width[10:0];
                 end else begin
-                    fit_h<=CANVAS_HEIGHT; numerator<=width_product;denominator<=abs_height;
+                    fit_h<=CANVAS_HEIGHT; numerator<=width_product;denominator<=abs_height[10:0];
                 end
                 div_start<=1;div_return<=FIT_DONE;state<=DIV_WAIT;
             end
@@ -1209,7 +1228,7 @@ always @(posedge clk or posedge rst) begin
             left_pad<=(CANVAS_WIDTH-fit_w)>>1;
             // Extra odd blank row belongs to the bottom in display coordinates.
             bottom_pad<=CANVAS_HEIGHT-fit_h-((CANVAS_HEIGHT-fit_h)>>1);
-            scale_base<=((src_w-1)<<14);
+            scale_base<=(({14'd0,src_w}-25'd1)<<14);
             scale_round<=fit_w>1 ? fit_w-2 : 0;
             scale_den<=fit_w>1 ? fit_w-1 : 1;
             state<=XS_DIV;
@@ -1220,7 +1239,7 @@ always @(posedge clk or posedge rst) begin
         end
         XS_DONE: begin scale_x<=quotient[17:0];state<=YS_START;end
         YS_START: begin
-            scale_base<=((src_h-1)<<14);
+            scale_base<=(({14'd0,src_h}-25'd1)<<14);
             scale_round<=fit_h>1 ? fit_h-2 : 0;
             scale_den<=fit_h>1 ? fit_h-1 : 1;
             state<=YS_DIV;
@@ -1233,7 +1252,7 @@ always @(posedge clk or posedge rst) begin
         ACK_HIGH: begin state_code<=3;if(ack_sync[1]) begin write_req<=0;state<=ACK_LOW;end end
         ACK_LOW: if(!ack_sync[1]) begin
             row<=0;column<=0;scaler_reset<=0;output_active<=1;state<=ROW_START;
-            row_pos<=source_height[31] ? pixel_offset+(src_h-1)*stride : pixel_offset;
+            row_pos<=source_height[31] ? pixel_offset[23:0]+last_row_offset : pixel_offset[23:0];
         end
         ROW_START: begin source_pos<=row_pos;column<=0;channel<=0;state<=BYTE_ADDR;end
         BYTE_ADDR: begin
@@ -1305,6 +1324,8 @@ endmodule
 
 // ===== Official source: SD/sd_card_bmp.v =====
 
+`include "root_catalog.vh"
+
 module sd_card_bmp #(
     parameter integer CLK_FREQ_HZ       = 100_000_000,
     parameter integer CANVAS_WIDTH = 640,
@@ -1351,6 +1372,9 @@ module sd_card_bmp #(
     input [2:0]                 picture_select_index,
     output reg                  picture_select_ack,
     output [2:0]                current_picture_index, picture_count,
+    // Root-directory catalog: 1 only when every BMP is one of the six named
+    // pictures and every WAV is one of the four named tracks with TRACKS.BIN.
+    output                      catalog_showcase, catalog_ready, catalog_tracks,
     output reg                  picture_state_toggle,
     output                      picture_idle,
     input                       static_enable,  // R10: level only gates new image requests, never in-flight I/O
@@ -1475,9 +1499,36 @@ wire shared_text_done,shared_text_abort,shared_text_we;
 wire [3:0] shared_text_status;
 wire [7:0] shared_text_addr,shared_text_data;
 wire [8:0] shared_text_length;
-wire             card_read = SHARED_TEXT || text_done ? arb_read : text_read;
-wire [31:0]      card_lba = SHARED_TEXT || text_done ? arb_lba : text_lba;
-wire             image_card_ready = sd_init_done && text_done && !text_abort;
+wire catalog_read;
+wire [31:0] catalog_lba;
+wire catalog_done;
+wire             card_read = SHARED_TEXT || text_done ? (catalog_done ? arb_read : catalog_read) : text_read;
+wire [31:0]      card_lba = SHARED_TEXT || text_done ? (catalog_done ? arb_lba : catalog_lba) : text_lba;
+wire catalog_pictures_named, catalog_tracks_named;
+wire [2:0] catalog_bmp_count, catalog_wav_count;
+wire [31:0] catalog_bmp_lba0, catalog_bmp_lba1, catalog_bmp_lba2, catalog_bmp_lba3, catalog_bmp_lba4, catalog_bmp_lba5;
+wire [87:0] catalog_first_wav_name;
+wire [135:0] catalog_mount_geometry;
+wire [17:0] catalog_named_order;
+wire [3:0] catalog_status;
+
+root_media_catalog #(.TIMEOUT_CYCLES(CLK_FREQ_HZ), .MAX_ROOT_SECTORS(TEXT_ROOT_MAX_SECTORS)) u_catalog (
+    .clk(clk), .rst(rst), .sd_ready(sd_init_done && (SHARED_TEXT || text_done)), .start(1'b1),
+    .read_req(catalog_read), .read_lba(catalog_lba),
+    .byte_valid(sd_sec_read_data_valid && !catalog_done && (SHARED_TEXT || text_done)), .byte_data(sd_sec_read_data),
+    .read_end(sd_sec_read_end && !catalog_done && (SHARED_TEXT || text_done)),
+    .done(catalog_done), .pictures_named(catalog_pictures_named), .tracks_named(catalog_tracks_named),
+    .bmp_count(catalog_bmp_count), .wav_count(catalog_wav_count),
+    .bmp_lba0(catalog_bmp_lba0), .bmp_lba1(catalog_bmp_lba1), .bmp_lba2(catalog_bmp_lba2),
+    .bmp_lba3(catalog_bmp_lba3), .bmp_lba4(catalog_bmp_lba4), .bmp_lba5(catalog_bmp_lba5),
+    .named_order(catalog_named_order), .first_wav_name(catalog_first_wav_name),
+    .mount_geometry(catalog_mount_geometry), .status(catalog_status)
+);
+
+wire             image_card_ready = sd_init_done && text_done && !text_abort && catalog_done;
+assign catalog_showcase = catalog_pictures_named;
+assign catalog_ready = catalog_done;
+assign catalog_tracks = catalog_tracks_named;
 generate if(!ENABLE_TEXT) begin: no_text
     // The fixed Chinese showcase has no card-loaded subtitle client. The
     // normal BMP/audio arbiter owns all requests after SD initialization.
@@ -1485,7 +1536,7 @@ generate if(!ENABLE_TEXT) begin: no_text
     assign text_we=1'b0,text_addr=8'd0,text_data=8'd0,text_length=9'd0;
 end else if(!SHARED_TEXT) begin: separate_text
 text_file_preload #(.TIMEOUT_CYCLES(CLK_FREQ_HZ),.MAX_ROOT_SECTORS(TEXT_ROOT_MAX_SECTORS)) u_text (
-    .runtime_name(88'd0),.clk(clk), .rst(rst), .sd_ready(sd_init_done),
+    .runtime_name(88'd0),.mount_geometry(136'd0),.clk(clk), .rst(rst), .sd_ready(sd_init_done),
     .read_req(text_read), .read_lba(text_lba),
     .byte_valid(sd_sec_read_data_valid && !text_done), .byte_data(sd_sec_read_data),
     .read_end(sd_sec_read_end && !text_done),
@@ -1499,20 +1550,21 @@ end else begin: shared_text
     assign text_we=shared_text_we,text_addr=shared_text_addr,text_data=shared_text_data,text_length=shared_text_length;
 end endgenerate
 generate if(ENABLE_MUSIC && ENABLE_TRACKS) begin: tracks
-    music_track_player #(.TIMEOUT_CYCLES(CLK_FREQ_HZ),.MAX_ROOT_SECTORS(TEXT_ROOT_MAX_SECTORS),.TITLE_STREAM(TITLE_STREAM),.EXTERNAL_STREAM(ENABLE_VIDEO_STREAM),.PRELOAD_TEXT(SHARED_TEXT),.SHOWCASE_TRACK_ORDER(SHOWCASE_TRACK_ORDER)) player(
+    music_track_player #(.TIMEOUT_CYCLES(CLK_FREQ_HZ),.MAX_ROOT_SECTORS(TEXT_ROOT_MAX_SECTORS),.TITLE_STREAM(TITLE_STREAM),.EXTERNAL_STREAM(ENABLE_VIDEO_STREAM),.PRELOAD_TEXT(SHARED_TEXT),.SHOWCASE_TRACK_ORDER(SHOWCASE_TRACK_ORDER),.MOUNT_FROM_CATALOG(!SHARED_TEXT)) player(
+        .mount_geometry(catalog_mount_geometry),
         .subtitle_done(shared_text_done),.subtitle_abort(shared_text_abort),.subtitle_status(shared_text_status),
         .subtitle_we(shared_text_we),.subtitle_addr(shared_text_addr),.subtitle_data(shared_text_data),.subtitle_length(shared_text_length),
-        .clk(clk),.rst(rst),.sd_ready(sd_init_done && (SHARED_TEXT || text_done)),
+        .clk(clk),.rst(rst),.sd_ready(sd_init_done && (SHARED_TEXT || text_done) && catalog_done),
         .read_req(wav_read),.read_lba(wav_lba),.byte_valid(wav_byte_valid),.byte_data(sd_sec_read_data),.read_end(wav_end),.arb_idle(sector_idle),
         .sample_valid(music_valid),.sample_data(music_sample),.sample_ready(music_ready),
         .flush_req(music_flush),.flush_ack(music_flush_ack),.select_toggle(track_select_toggle),.select_index(track_select_index),.select_ack(track_select_ack),
         .tracks_ready(tracks_ready),.available_mask(track_mask),.titles(track_titles),.active_index(active_track),.status(music_status),
         .title_valid(track_title_valid),.title_address(track_title_address),.title_byte_data(track_title_data),.title_ready(track_title_ready),
-        .external_req(external_req),.external_hold(external_hold),.external_name(external_name),.external_ready(external_ready),.external_restart_toggle(external_restart_toggle),
+        .external_req(external_req),.external_hold(external_hold),.external_name(external_name),.catalog_wav_name(catalog_first_wav_name),.catalog_tracks_named(catalog_tracks_named),.external_ready(external_ready),.external_restart_toggle(external_restart_toggle),
         .external_grant(external_grant),.external_valid(external_valid),.external_data(external_data),.external_last(external_last),.external_size(external_size),.external_done(external_done),.external_error(external_error),
         .external_idle(external_idle),.external_restart_ack(external_restart_ack),.external_released(external_released));
     sd_sector_arbiter #(.TIMEOUT_CYCLES(CLK_FREQ_HZ)) arbiter(
-        .clk(clk),.rst(rst || (!SHARED_TEXT && !text_done)),.a_req(wav_read),.a_lba(wav_lba),.a_urgent(music_urgent),
+        .clk(clk),.rst(rst || (!SHARED_TEXT && !text_done) || !catalog_done),.a_req(wav_read),.a_lba(wav_lba),.a_urgent(music_urgent),
         .b_req(sd_sec_read),.b_lba(sd_sec_read_addr),.card_req(arb_read),.card_lba(arb_lba),
         .card_valid(sd_sec_read_data_valid),.card_end(sd_sec_read_end),
         .a_valid(wav_byte_valid),.a_end(wav_end),.b_valid(bmp_byte_valid),.b_end(bmp_end),.idle(sector_idle));
@@ -1527,8 +1579,8 @@ end else if(ENABLE_MUSIC) begin: music
     wire [31:0] file_size;
     wire [3:0] file_status, decode_status;
     text_file_preload #(.TIMEOUT_CYCLES(CLK_FREQ_HZ),.MAX_ROOT_SECTORS(TEXT_ROOT_MAX_SECTORS),
-        .STREAM(1),.FILE_NAME("MUSIC   WAV")) file_reader (
-        .runtime_name(88'd0),.clk(clk),.rst(rst),.sd_ready(sd_init_done && text_done),
+        .STREAM(1),.RUNTIME_NAME(1),.MOUNT_FROM_CATALOG(1),.FILE_NAME("MUSIC   WAV")) file_reader (
+        .runtime_name(catalog_first_wav_name),.mount_geometry(catalog_mount_geometry),.clk(clk),.rst(rst),.sd_ready(sd_init_done && text_done && catalog_done),
         .read_req(wav_read),.read_lba(wav_lba),.byte_valid(wav_byte_valid),
         .byte_data(sd_sec_read_data),.read_end(wav_end),.done(file_done),
         .abort_card(abort_unused),.status(file_status),.text_we(),.text_addr(),.text_data(),.text_length(),
@@ -1539,7 +1591,7 @@ end else if(ENABLE_MUSIC) begin: music
         .sample_valid(music_valid),.sample_ready(music_ready),.sample_data(music_sample),.status(decode_status));
     assign music_status = file_done ? (file_status==3 ? 4'd3 : 4'd4) : decode_status;
     sd_sector_arbiter #(.TIMEOUT_CYCLES(CLK_FREQ_HZ)) arbiter(
-        .clk(clk),.rst(rst || !text_done),.a_req(wav_read),.a_lba(wav_lba),.a_urgent(music_urgent),
+        .clk(clk),.rst(rst || !text_done || !catalog_done),.a_req(wav_read),.a_lba(wav_lba),.a_urgent(music_urgent),
         .b_req(sd_sec_read),.b_lba(sd_sec_read_addr),.card_req(arb_read),.card_lba(arb_lba),
         .card_valid(sd_sec_read_data_valid),.card_end(sd_sec_read_end),
         .a_valid(wav_byte_valid),.a_end(wav_end),.b_valid(bmp_byte_valid),.b_end(bmp_end),.idle(sector_idle));
@@ -1551,8 +1603,8 @@ end else begin: no_music
     assign music_flush=0;assign track_select_ack=0;assign tracks_ready=0;
     assign track_mask=0;assign track_titles=0;assign active_track=0;
     assign arb_read=sd_sec_read; assign arb_lba=sd_sec_read_addr;
-    assign bmp_byte_valid=sd_sec_read_data_valid && text_done;
-    assign bmp_end=sd_sec_read_end && text_done;
+    assign bmp_byte_valid=sd_sec_read_data_valid && text_done && catalog_done;
+    assign bmp_end=sd_sec_read_end && text_done && catalog_done;
     assign wav_read=0; assign wav_lba=0; assign wav_byte_valid=0; assign wav_end=0;
     assign music_valid=0; assign music_sample=0; assign music_status=0;
 end endgenerate
@@ -1568,26 +1620,17 @@ wire bmp_launch_ready=ENABLE_VIDEO_STREAM ? bmp_ready_registered : bmp_ready;
 wire             scan_done;
 wire             bmp_scan_done;
 reg              scan_kicked;
-assign scan_done=FIXED_IMAGE_MAP ? scan_kicked : bmp_scan_done;
-wire             scan_found_valid;
-wire [31:0]      scan_found_sector;
-wire [2:0]       scan_found_total;
+assign scan_done = catalog_done;
 
 reg              scan_start_pulse;
 reg              load_start_pulse;
-reg [31:0]       load_sector;
+wire [31:0]      load_sector;
 reg              first_image_committed;
 reg [31:0]       auto_cnt;
 reg [2:0]        img_found_count;
 reg [2:0]        img_idx;              // 当前真正显示中的图片编号，支持六张
 reg [2:0]        load_idx;             // 当前正在写入的图片编号
 reg [(ENABLE_IMAGE_CACHE ? 3 : 2)-1:0] pending_buf_idx;      // 当前正在写入的目标缓冲区
-reg [31:0]       img_sector0;
-reg [31:0]       img_sector1;
-reg [31:0]       img_sector2;
-reg [31:0]       img_sector3;
-reg [31:0]       img_sector4;
-reg [31:0]       img_sector5;
 reg              next_req_pending;
 reg              pending_previous;
 reg              pending_absolute;
@@ -1623,15 +1666,17 @@ wire [15:0] loaded_width,loaded_height;
 assign frame_metadata=published_metadata;
 assign loader_busy=load_busy || (ENABLE_IMAGE_CACHE && !cache_prepared && scan_done);
 assign current_picture_index=img_idx;
-assign picture_count=img_found_count;
-reg [5:0] picture_state_last;
-// The bundle changes only at scan results or completed presentation. Each new
-// scan result needs a complete sector; each new identity needs a complete load
-// and fade/ACK, providing a much longer hold than the return synchronizer.
+assign picture_count=catalog_done ? catalog_bmp_count : 3'd0;
+reg [8:0] picture_state_last;
+wire [8:0] picture_state_now={catalog_done,catalog_pictures_named,catalog_tracks_named,picture_count,img_idx};
+// Publish the final catalog together with its count, including an empty card
+// and scans completed while scene mode holds the image loader. Suppress the
+// intermediate catalog counts so completion emits exactly one initial token.
+// Later picture identities are separated by a complete presentation ACK.
 always @(posedge clk or posedge rst)
     if(rst)begin picture_state_last<=0;picture_state_toggle<=0;end
-    else if(picture_state_last!={img_found_count,img_idx})begin
-        picture_state_last<={img_found_count,img_idx};picture_state_toggle<=~picture_state_toggle;
+    else if(catalog_done && picture_state_last!=picture_state_now)begin
+        picture_state_last<=picture_state_now;picture_state_toggle<=~picture_state_toggle;
     end
 assign picture_idle=(!ENABLE_IMAGE_CACHE || cache_prepared) && !load_busy && !presentation_pending && !next_req_pending &&
     !load_start_pulse && !scan_start_pulse && bmp_ready && scan_done &&
@@ -1710,20 +1755,15 @@ function [2:0] next_index_limited;
     end
 endfunction
 
-function [31:0] sector_lut;
-    input [2:0] idx;
-    begin
-        case (idx)
-            3'd0: sector_lut = img_sector0;
-            3'd1: sector_lut = img_sector1;
-            3'd2: sector_lut = img_sector2;
-            3'd3: sector_lut = img_sector3;
-            3'd4: sector_lut = img_sector4;
-            3'd5: sector_lut = img_sector5;
-            default: sector_lut = img_sector0;
-        endcase
-    end
-endfunction
+// Picture idx is N0(idx+1) when the card holds exactly the named set,
+// otherwise the idx-th valid BMP in directory order. A single mux driven by
+// load_idx, which is set in the same cycle as load_start_pulse.
+wire [2:0] load_pos = catalog_pictures_named ? catalog_named_order[load_idx*3+:3] : load_idx;
+assign load_sector = load_pos==3'd0 ? catalog_bmp_lba0 :
+                     load_pos==3'd1 ? catalog_bmp_lba1 :
+                     load_pos==3'd2 ? catalog_bmp_lba2 :
+                     load_pos==3'd3 ? catalog_bmp_lba3 :
+                     load_pos==3'd4 ? catalog_bmp_lba4 : catalog_bmp_lba5;
 
 function [1:0] next_buf_lut;
     input [1:0] cur_disp_buf;
@@ -1761,7 +1801,6 @@ always @(posedge clk or posedge rst) begin
         scan_start_pulse      <= 1'b0;
         load_start_pulse      <= 1'b0;
         reload_pending<=0;background_reload_ack<=0;
-        load_sector           <= 32'd0;
         scan_kicked           <= 1'b0;
         first_image_committed <= 1'b0;
         auto_cnt              <= 32'd0;
@@ -1771,12 +1810,6 @@ always @(posedge clk or posedge rst) begin
         pending_buf_idx       <= 2'd0;
         write_buf_idx         <= 2'd0;
         disp_buf_idx          <= 2'd0;
-        img_sector0           <= 32'd0;
-        img_sector1           <= 32'd0;
-        img_sector2           <= 32'd0;
-        img_sector3           <= 32'd0;
-        img_sector4           <= 32'd0;
-        img_sector5           <= 32'd0;
         next_req_pending      <= 1'b0;
         pending_previous      <= 1'b0;
         pending_absolute<=0;pending_picture<=0;
@@ -1804,33 +1837,14 @@ always @(posedge clk or posedge rst) begin
             pending_buf_idx       <= 2'd0;
             write_buf_idx         <= 2'd0;
             disp_buf_idx          <= 2'd0;
-            img_sector0           <= 32'd0;
-            img_sector1           <= 32'd0;
-            img_sector2           <= 32'd0;
-            img_sector3           <= 32'd0;
-            img_sector4           <= 32'd0;
-            img_sector5           <= 32'd0;
             next_req_pending      <= 1'b0;
             load_busy             <= 1'b0;
             source_done_seen      <= 1'b0;
             display_valid         <= 1'b0;
         end else begin
-            // 扫描阶段缓存至多前六张合法图的起始 sector
-            if (scan_found_valid) begin
-                case (img_found_count)
-                    3'd0: img_sector0 <= scan_found_sector;
-                    3'd1: img_sector1 <= scan_found_sector;
-                    3'd2: img_sector2 <= scan_found_sector;
-                    3'd3: img_sector3 <= scan_found_sector;
-                    3'd4: img_sector4 <= scan_found_sector;
-                    3'd5: img_sector5 <= scan_found_sector;
-                    default: ;
-                endcase
-
-                if (img_found_count < SCAN_TARGET_COUNT && img_found_count < 3'd6)
-                    img_found_count <= img_found_count + 3'd1;
-            end
-
+            // An empty catalog has no canvases to preload. It must still
+            // become quiescent so scene mode can be entered and left.
+            if(ENABLE_IMAGE_CACHE && catalog_bmp_count==0) cache_prepared<=1;
             // 记住 bmp_read 已经把源图送完 FIFO，但还不能切显示，得等整帧写完
             if (load_busy && bmp_ready)
                 source_done_seen <= 1'b1;
@@ -1877,17 +1891,13 @@ always @(posedge clk or posedge rst) begin
             end
 
             // 上电后自动发起一次“扫描前 SCAN_TARGET_COUNT 张 BMP”
-            if (!hold_background && !scan_kicked && bmp_launch_ready) begin
-                scan_start_pulse      <= !FIXED_IMAGE_MAP;
-                cached_valid<=0;preload_idx<=0;cache_prepared<=0;cache_write_done_seen<=0;
+            if (!hold_background && !scan_kicked && catalog_done && bmp_launch_ready) begin
+                scan_start_pulse      <= 1'b0;
+                cached_valid<=0;preload_idx<=0;cache_prepared<=catalog_bmp_count==0;cache_write_done_seen<=0;
                 scan_kicked           <= 1'b1;
                 first_image_committed <= 1'b0;
                 auto_cnt              <= 32'd0;
-                img_found_count       <= FIXED_IMAGE_MAP ? SCAN_TARGET_COUNT : 3'd0;
-                if(FIXED_IMAGE_MAP)begin
-                    img_sector0<=IMAGE_SECTOR0;img_sector1<=IMAGE_SECTOR1;img_sector2<=IMAGE_SECTOR2;
-                    img_sector3<=IMAGE_SECTOR3;img_sector4<=IMAGE_SECTOR4;img_sector5<=IMAGE_SECTOR5;
-                end
+                img_found_count       <= catalog_bmp_count;
                 img_idx               <= 3'd0;
                 load_idx              <= 3'd0;
                 pending_buf_idx       <= 2'd0;
@@ -1923,7 +1933,6 @@ always @(posedge clk or posedge rst) begin
                 // 首图自动加载到 buffer0
                 if (!hold_background && scan_done && !first_image_committed && bmp_launch_ready && !load_busy && (img_found_count != 3'd0)) begin
                     load_idx         <= ENABLE_IMAGE_CACHE ? preload_idx : reload_pending ? img_idx : 3'd0;
-                    load_sector      <= ENABLE_IMAGE_CACHE ? sector_lut(preload_idx) : reload_pending ? sector_lut(img_idx) : img_sector0;
                     reload_pending   <= 1'b0;
                     pending_buf_idx  <= ENABLE_IMAGE_CACHE ? preload_idx : 3'd0;
                     write_buf_idx    <= ENABLE_IMAGE_CACHE ? preload_idx : 3'd0;
@@ -1940,7 +1949,6 @@ always @(posedge clk or posedge rst) begin
                         publish_cached(manual_from_current,cached_width[manual_from_current],cached_height[manual_from_current]);
                     end else if(!ENABLE_IMAGE_CACHE)begin
                     load_idx         <= manual_from_current;
-                    load_sector      <= sector_lut(manual_from_current);
                     pending_buf_idx  <= next_buf_lut(disp_buf_idx, display_valid);
                     write_buf_idx    <= next_buf_lut(disp_buf_idx, display_valid);
                     load_start_pulse <= 1'b1;
@@ -1958,7 +1966,6 @@ always @(posedge clk or posedge rst) begin
                         publish_cached(next_from_current,cached_width[next_from_current],cached_height[next_from_current]);
                     end else if(!ENABLE_IMAGE_CACHE)begin
                     load_idx         <= next_from_current;
-                    load_sector      <= sector_lut(next_from_current);
                     pending_buf_idx  <= next_buf_lut(disp_buf_idx, display_valid);
                     write_buf_idx    <= next_buf_lut(disp_buf_idx, display_valid);
                     load_start_pulse <= 1'b1;
@@ -1990,9 +1997,9 @@ bmp_read #(.CANVAS_WIDTH(CANVAS_WIDTH), .CANVAS_HEIGHT(CANVAS_HEIGHT),.PAUSABLE_
     .scan_max_sector        (SCAN_MAX_SECTOR),
     .scan_target_count      (SCAN_TARGET_COUNT),
     .scan_done              (bmp_scan_done),
-    .scan_found_valid       (scan_found_valid),
-    .scan_found_sector      (scan_found_sector),
-    .scan_found_total       (scan_found_total),
+    .scan_found_valid       (),
+    .scan_found_sector      (),
+    .scan_found_total       (),
 
     .load_start             (load_start_pulse),
     .load_sector            (load_sector),
@@ -2214,10 +2221,12 @@ module text_file_preload #(
     parameter integer STREAM = 0,
     parameter integer RUNTIME_NAME = 0,
     parameter integer RUNTIME_TEXT = 0,
+    parameter integer MOUNT_FROM_CATALOG = 0,
     parameter [87:0] FILE_NAME = "TEXT    TXT"
 )(
     input wire clk, rst, sd_ready,
     input wire [87:0] runtime_name,
+    input wire [135:0] mount_geometry,
     output wire read_req,
     output reg [31:0] read_lba,
     input wire byte_valid,
@@ -2267,6 +2276,20 @@ reg [31:0] entry_cluster, file_cluster, file_size;
 reg found, directory_end;
 reg [31:0] next_cluster;
 reg [2:0] cluster_shift;
+wire [31:0] mounted_fat, mounted_data, mounted_limit, mounted_root;
+wire [7:0] mounted_spc;
+assign {mounted_fat,mounted_data,mounted_limit,mounted_root,mounted_spc}=mount_geometry;
+wire [2:0] mounted_shift=mounted_spc==1 ? 3'd0 : mounted_spc==2 ? 3'd1 :
+    mounted_spc==4 ? 3'd2 : mounted_spc==8 ? 3'd3 : mounted_spc==16 ? 3'd4 :
+    mounted_spc==32 ? 3'd5 : mounted_spc==64 ? 3'd6 : 3'd7;
+// Root open, file open/rewind, and FAT advance are mutually exclusive.
+// Share their subtract/shift/add datapath; the catalog descriptor stays frozen
+// for this reset epoch, including across track changes and reader resets.
+wire [31:0] map_cluster=(MOUNT_FROM_CATALOG && state==WAIT_CARD) ? mounted_root :
+    state==FAT_CHECK ? {4'd0,next_cluster[27:0]} : file_cluster;
+wire [31:0] map_data_lba=MOUNT_FROM_CATALOG ? mounted_data : data_lba;
+wire [2:0] map_shift=MOUNT_FROM_CATALOG ? mounted_shift : cluster_shift;
+wire [31:0] mapped_cluster_lba=map_data_lba+((map_cluster-32'd2)<<map_shift);
 // STREAM mode reuses the same mount/directory parser for MUSIC.WAV. A complete
 // SPI sector is buffered before exposing backpressure; SPI itself never pauses.
 wire [7:0] sector_data;
@@ -2375,13 +2398,21 @@ always @(posedge clk or posedge reset) begin
         if(state!=WAIT_CARD && state!=FINISHED && watchdog>=TIMEOUT_CYCLES-1) begin
             text_length<=0; finish(6); abort_card<=1;
         end else case(state)
-            WAIT_CARD: if(sd_ready) request_sector(0,BOOT);
+            WAIT_CARD: if(sd_ready) begin
+                if(MOUNT_FROM_CATALOG) begin
+                    // The startup catalog already validated this immutable
+                    // geometry. Retain directory/FAT validation for each open.
+                    fat_lba<=mounted_fat; data_lba<=mounted_data; cluster_limit<=mounted_limit;
+                    cluster_sectors<=mounted_spc; current_cluster<=mounted_root; cluster_sector<=0;
+                    request_sector(mapped_cluster_lba,ROOT);
+                end else request_sector(0,BOOT);
+            end
             REQUEST: state<=RECEIVE;
             RECEIVE: begin
                 if(byte_valid && byte_count<512) begin
                     byte_count<=byte_count+1'b1;
                     case(kind)
-                        BOOT: begin
+                        BOOT: if(!MOUNT_FROM_CATALOG) begin
                             case(byte_count)
                                 0:jump_byte<=byte_data;
                                 11:bytes_per_sector[7:0]<=byte_data;
@@ -2462,7 +2493,7 @@ always @(posedge clk or posedge reset) begin
                     endcase
                 end
             end
-            BOOT_CHECK: begin
+            BOOT_CHECK: if(!MOUNT_FROM_CATALOG) begin
                 if(boot_signature!=16'haa55) finish(4);
                 else if((jump_byte==8'heb || jump_byte==8'he9) && bytes_per_sector==512) state<=GEOMETRY;
                 else if(!partition_boot && mbr_lba!=0 && mbr_size!=0) begin
@@ -2470,7 +2501,7 @@ always @(posedge clk or posedge reset) begin
                     request_sector(mbr_lba,BOOT);
                 end else finish(4);
             end
-            GEOMETRY: begin
+            GEOMETRY: if(!MOUNT_FROM_CATALOG) begin
                 if(!geometry_valid) finish(4);
                 else begin
                     fat_lba<=volume_lba+reserved_sectors+((flags[7] && flags[0]) ? fat_size : 32'd0);
@@ -2488,7 +2519,7 @@ always @(posedge clk or posedge reset) begin
                         current_cluster<=file_cluster; cluster_sector<=0;
                         file_remaining<=file_size; file_chain<=stream_mode;
                         chain_anchor<=file_cluster; chain_power<=1; chain_length<=0;
-                        request_sector(data_lba+((file_cluster-2)<<cluster_shift),TEXT);
+                        request_sector(mapped_cluster_lba,TEXT);
                     end
                 end else if(directory_end) finish(3);
                 else if(root_sectors_seen>=MAX_ROOT_SECTORS-1) finish(5);
@@ -2509,7 +2540,7 @@ always @(posedge clk or posedge reset) begin
                             chain_anchor<={4'd0,next_cluster[27:0]}; chain_power<=chain_power<<1; chain_length<=0;
                         end
                     end
-                    request_sector(data_lba+(({4'd0,next_cluster[27:0]}-2)<<cluster_shift),file_chain ? TEXT : ROOT);
+                    request_sector(mapped_cluster_lba,file_chain ? TEXT : ROOT);
                 end
             end
             STREAM_WAIT: state<=STREAM_SEND;
@@ -2519,7 +2550,7 @@ always @(posedge clk or posedge reset) begin
                     // Re-read RIFF on every loop; the PCM FIFO bridges metadata.
                     file_remaining<=file_size; current_cluster<=file_cluster; cluster_sector<=0;
                     chain_anchor<=file_cluster; chain_power<=1; chain_length<=0;
-                    request_sector(data_lba+((file_cluster-2)<<cluster_shift),TEXT);
+                    request_sector(mapped_cluster_lba,TEXT);
                 end else if({1'b0,stream_index}+10'd1==sector_bytes) state<=STREAM_NEXT;
                 else begin stream_index<=stream_index+1'b1; state<=STREAM_WAIT; end
             end
@@ -2718,9 +2749,11 @@ module music_track_player #(
     parameter integer TITLE_STREAM=0,
     parameter integer EXTERNAL_STREAM=0,
     parameter integer PRELOAD_TEXT=0,
+    parameter integer MOUNT_FROM_CATALOG=0,
     parameter integer SHOWCASE_TRACK_ORDER=0
 )(
     input wire clk,rst,sd_ready,
+    input wire [135:0] mount_geometry,
     output reg subtitle_done,subtitle_abort,
     output reg [3:0] subtitle_status,
     output wire subtitle_we,
@@ -2752,6 +2785,8 @@ module music_track_player #(
     // reused. HOLD stops the source but never certifies writer/display fences.
     input wire external_req,external_hold,external_ready,external_restart_toggle,
     input wire [87:0] external_name,
+    input wire [87:0] catalog_wav_name,
+    input wire catalog_tracks_named,
     output reg external_grant,
     output wire external_valid,external_last,
     output wire [7:0] external_data,
@@ -2790,6 +2825,7 @@ wire text_operation=PRELOAD_TEXT && operation==OPEN_TEXT;
 wire external_restart_event=EXTERNAL_STREAM && external_owned && external_req &&
     external_restart_toggle!=restart_token;
 wire [87:0] runtime_name=text_operation ? "TEXT    TXT" : external_operation ? external_name_held : operation==OPEN_LIST ? "TRACKS  BIN" :
+    (!catalog_tracks_named && catalog_wav_name!=0) ? catalog_wav_name :
     (SHOWCASE_TRACK_ORDER && target==0) ? "TRACK06 WAV" :
     target==0 ? "TRACK01 WAV" : target==1 ? "TRACK02 WAV" :
     target==2 ? "TRACK03 WAV" : target==3 ? "TRACK04 WAV" : "TRACK05 WAV";
@@ -2842,8 +2878,8 @@ assign external_idle=EXTERNAL_STREAM && external_owned && state==EXTERNAL_HOLD &
 assign external_released=EXTERNAL_STREAM && tracks_ready && !external_owned && !external_req &&
     (state==PLAY || state==ERROR_STATE);
 text_file_preload #(.TIMEOUT_CYCLES(TIMEOUT_CYCLES),.MAX_ROOT_SECTORS(MAX_ROOT_SECTORS),
-    .STREAM(1),.RUNTIME_NAME(1),.RUNTIME_TEXT(PRELOAD_TEXT)) file_reader(
-    .clk(clk),.rst(reset || reader_reset),.sd_ready(sd_ready),.runtime_name(runtime_name),
+    .STREAM(1),.RUNTIME_NAME(1),.RUNTIME_TEXT(PRELOAD_TEXT),.MOUNT_FROM_CATALOG(MOUNT_FROM_CATALOG)) file_reader(
+    .clk(clk),.rst(reset || reader_reset),.sd_ready(sd_ready),.runtime_name(runtime_name),.mount_geometry(mount_geometry),
     .read_req(raw_req),.read_lba(read_lba),.byte_valid(byte_valid),.byte_data(byte_data),
     .read_end(read_end),.done(file_done),.abort_card(file_abort),.status(file_status),
     .text_we(file_text_we),.text_addr(subtitle_addr),.text_data(subtitle_data),.text_length(file_text_length),
@@ -3043,8 +3079,14 @@ always @(posedge clk or posedge reset) begin
                 if(external_operation)begin flush_req<=0;state<=WAIT_LOW;end
                 else if(EXTERNAL_STREAM && external_owned && !restore_playable)begin
                     flush_req<=0;state<=WAIT_LOW;
+                end else if(operation==OPEN_LIST && !catalog_tracks_named) begin
+                    // Not the named track set: skip TRACKS.BIN and loop the
+                    // first valid root WAV as a single track.
+                    if(catalog_wav_name!=0) begin operation<=OPEN_PLAY;target<=0;end
+                    else begin reader_reset<=1;status<=3;tracks_ready<=1;state<=ERROR_STATE;end
                 end else if(operation==OPEN_PLAY) begin
                     active_index<=target;tracks_ready<=1;status<=0;flush_req<=0;state<=WAIT_LOW;
+                    if(!catalog_tracks_named) begin have_first<=1;first_available<=0;available_mask<=5'b00001;end
                 end else begin
                     reader_reset<=0;state<=text_operation ? TEXT_LOAD : operation==OPEN_LIST ? MANIFEST : PROBE;
                     manifest_position<=0;manifest_bad<=0;title_length<=0;title_visible<=0;

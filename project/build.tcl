@@ -76,10 +76,12 @@ optimize_gate
 write_verilog probe_gate.v
 report_area -io_info -file probe_gate.area
 set_param place effort high
-set_param place seed 3
+if {![info exists build_place_seed]} {set build_place_seed 3}
+set_param place seed $build_place_seed
 set_param route effort routability
 legalize_phy_inst
 place
+report_timing_summary -file probe.place.timing
 route
 fix_hold
 puts PHYSICAL_HOLD_REPAIR_DONE

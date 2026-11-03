@@ -2310,6 +2310,7 @@ module player_menu_control #(
     input wire lock_media,force_scene_off,
     input wire clk,rst,key_enter_n,key_next_n,key_prev_n,sw_auto,sw_menu,sw_scene,
     input wire [2:0] current_picture_index,picture_count,
+    input wire catalog_showcase,catalog_ready,catalog_tracks,
     input wire picture_select_ack,
     output reg picture_select_toggle,
     output reg [2:0] picture_select_index,picture_candidate,
@@ -2370,7 +2371,9 @@ reg [2:0] desired_track;
 reg picture_pending;
 reg [2:0] picture_pending_index;
 wire picture_available=picture_count>0 && picture_count<=6;
-wire picture_disabled=ENABLE_PICTURES && (stable[2] || nav_hold || !picture_available);
+// A card that is not exactly the six named pictures cannot use picture selection.
+wire picture_disabled=ENABLE_PICTURES && (stable[2] || nav_hold || !picture_available ||
+    (catalog_ready && !catalog_showcase));
 function [2:0] adjacent_picture;
     input [2:0] current,count;
     input previous;
@@ -2401,11 +2404,15 @@ function [2:0] adjacent_track;
     end
 endfunction
 wire media_lock=ENABLE_VIDEO_CONTROL && lock_media;
+wire subtitle_disabled=catalog_ready && !catalog_showcase &&
+    !(ENABLE_SCENE && (ENABLE_PICTURES ? stable[2] : scene_enable));
+wire track_disabled=!ENABLE_TRACKS || !tracks_ready || track_mask==0 || media_lock ||
+    (catalog_ready && !catalog_tracks);
 wire menu_changed=stable[1]!=menu_open;
 wire picture_commit=ENABLE_PICTURES && !media_lock && !menu_changed && menu_open && menu_edit &&
     menu_item==6 && press[0] && !picture_disabled;
 wire direction_event=(press[1]^press[2]) && (stable[4] || stable[5]);
-wire track_event=!media_lock && ENABLE_TRACKS && tracks_ready && (|track_mask) && !menu_changed &&
+wire track_event=!track_disabled && !menu_changed &&
     menu_open && menu_edit && menu_item==7 && !press[0] && direction_event;
 wire [2:0] event_track=adjacent_track(desired_track,press[2],track_mask);
 // R10: route each physical direction event to exactly one media mode.
@@ -2453,6 +2460,7 @@ always @(posedge clk or posedge reset) begin
         if(menu_changed) begin menu_open<=stable[1];menu_edit<=0;menu_item<=0;end
         else if(menu_open) begin
             if(ENABLE_PICTURES && menu_edit && menu_item==6 && picture_disabled) menu_edit<=0;
+            else if(menu_edit && ((menu_item==3 && subtitle_disabled) || (menu_item==7 && track_disabled))) menu_edit<=0;
             else if(press[0]) begin
                 if(ENABLE_PICTURES && menu_item==6) begin
                     if(menu_edit) menu_edit<=0;
@@ -2460,7 +2468,8 @@ always @(posedge clk or posedge reset) begin
                         picture_candidate<=current_picture_index<picture_count ? current_picture_index : 0;
                         menu_edit<=1;
                     end
-                end else menu_edit<=!menu_edit;
+                end else if((menu_item==3 && subtitle_disabled) || (menu_item==7 && track_disabled)) menu_edit<=0;
+                else menu_edit<=!menu_edit;
             end
             else if(direction_event) begin
                 if(!menu_edit) menu_item<=press[1] ? menu_item+3'd1 : menu_item-3'd1;
@@ -2471,7 +2480,7 @@ always @(posedge clk or posedge reset) begin
                       else if(press[2] && volume_level>0) volume_level<=volume_level-1'b1;
                     2:if(press[1] && contrast_level<10) contrast_level<=contrast_level+1'b1;
                       else if(press[2] && contrast_level>0) contrast_level<=contrast_level-1'b1;
-                    3:subtitle_enable<=!subtitle_enable;
+                    3:if(!subtitle_disabled) subtitle_enable<=!subtitle_enable;
                     4:visual_enable<=!visual_enable;
                     5:period_select<=press[1] ? (period_select==2 ? 2'd0 : period_select+1'b1) :
                                                (period_select==0 ? 2'd2 : period_select-1'b1);
@@ -2506,6 +2515,7 @@ module player_menu_overlay #(parameter integer ENABLE_TRACKS=0,parameter integer
     input wire [1:0] period_select,
     input wire tracks_ready,
     input wire [4:0] track_mask,
+    input wire catalog_showcase,catalog_ready,catalog_tracks,
     input wire [3:0] track_status,
     input wire [247:0] track_title,
     input wire [1239:0] raw_titles,
@@ -2527,6 +2537,7 @@ always @(posedge clk or posedge rst) begin
 end
 wire reset=reset_sync[2];
 reg open_f,edit_f,subtitle_f,visual_f,scene_f,media_locked_f,vs_last,de_last;
+reg catalog_showcase_f,catalog_ready_f,catalog_tracks_f;
 reg [2:0] item_f,picture_f;
 reg [3:0] bright_f,volume_f,contrast_f;
 reg [1:0] period_f;
@@ -2573,7 +2584,7 @@ always @(posedge clk or posedge reset) begin
     if(reset) begin
         open_f<=0;edit_f<=0;item_f<=0;picture_f<=0;bright_f<=5;volume_f<=5;contrast_f<=5;
         subtitle_f<=1;visual_f<=1;scene_f<=0;media_locked_f<=0;period_f<=1;vs_last<=0;de_last<=0;x<=0;y<=0;
-        title_f<=0;ready_f<=0;mask_f<=0;status_f<=0;raw_index_f<=0;
+        title_f<=0;ready_f<=0;mask_f<=0;status_f<=0;raw_index_f<=0;catalog_showcase_f<=0;catalog_ready_f<=0;catalog_tracks_f<=0;
         compact_title_length<=0;
     end else begin
         vs_last<=in_vs;de_last<=in_de;
@@ -2583,6 +2594,7 @@ always @(posedge clk or posedge reset) begin
             subtitle_f<=subtitle_enable;visual_f<=visual_enable;period_f<=period_select;
             scene_f<=ENABLE_SCENE && scene_enable;
             media_locked_f<=ENABLE_MEDIA_LOCK && media_locked;
+            catalog_showcase_f<=catalog_showcase;catalog_ready_f<=catalog_ready;catalog_tracks_f<=catalog_tracks;
             if(ENABLE_TRACKS)begin
                 if(!USE_RAW_TITLES)title_f<=track_title;
                 raw_index_f<=raw_track_index;ready_f<=tracks_ready;mask_f<=track_mask;status_f<=track_status;
@@ -2836,9 +2848,10 @@ always @(posedge clk or posedge reset) begin
                 (x==16 || x==(ENABLE_TRACKS ? 463 : 399) || y==48 || y==335 ||
                 (edit_f && row==item_f && y>=64 && y<320 && x>=184 && x<(ENABLE_TRACKS && row==7 ? 448 : 288) && (row_y[4:0]==0 || row_y[4:0]==17))));
         select1<=COMPACT ? (compact_edit_value || (compact_main_panel && compact_main_text && compact_main_row=={1'b0,item_f})) : row==item_f && y>=64 && y<320;
-        disabled1<=COMPACT ? ((compact_sub_panel ? item_f : compact_main_row[2:0])==6 && (!ENABLE_SCENE || (ENABLE_PICTURES && scene_f) || media_locked_f)) ||
-            ((compact_sub_panel ? item_f : compact_main_row[2:0])==7 && (!ENABLE_TRACKS || !ready_f || mask_f==0 || media_locked_f)) :
-            ((row==6 && (!ENABLE_SCENE || media_locked_f)) || (row==7 && (!ENABLE_TRACKS || !ready_f || mask_f==0 || media_locked_f))) && y>=64 && y<320;
+        disabled1<=COMPACT ? ((compact_sub_panel ? item_f : compact_main_row[2:0])==6 && (!ENABLE_SCENE || (ENABLE_PICTURES && scene_f) || media_locked_f || (catalog_ready_f && !catalog_showcase_f))) ||
+            ((compact_sub_panel ? item_f : compact_main_row[2:0])==7 && (!ENABLE_TRACKS || !ready_f || mask_f==0 || media_locked_f || (catalog_ready_f && !catalog_tracks_f))) ||
+            ((compact_sub_panel ? item_f : compact_main_row[2:0])==3 && catalog_ready_f && !catalog_showcase_f && !scene_f) :
+            ((row==6 && (!ENABLE_SCENE || media_locked_f || (catalog_ready_f && !catalog_showcase_f))) || (row==7 && (!ENABLE_TRACKS || !ready_f || mask_f==0 || media_locked_f || (catalog_ready_f && !catalog_tracks_f))) || (row==3 && catalog_ready_f && !catalog_showcase_f && !scene_f)) && y>=64 && y<320;
         hs2<=hs1;vs2<=vs1;de2<=de1;rgb2<=rgb1;
         panel2<=panel1;edge2<=edge1;select2<=select1;disabled2<=disabled1;
         ink2<=font_ink;
@@ -2981,6 +2994,7 @@ module video_adjust_osd #(
 );
 localparam integer SHOWCASE_CN=0;
 wire [2:0] subtitle_picture_bank=0;
+wire subtitle_catalog_ok=1'b1;
 wire subtitle_scene=0;
 wire [7:0] subtitle_glyph;
 wire [3:0] subtitle_row;
@@ -3001,6 +3015,9 @@ module video_adjust_osd_cn #(
     input wire key_dec_n, key_inc_n,
     input wire [1:0] switch_in,
     input wire subtitle_switch,
+    // 0 hides picture subtitles for a card that is not the named set.
+    // Scene subtitles (message 6) stay available.
+    input wire subtitle_catalog_ok,
     input wire text_clk, text_we,
     input wire [7:0] text_addr, text_data,
     input wire text_done,

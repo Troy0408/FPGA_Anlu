@@ -112,7 +112,9 @@ wire nav_toggle,nav_previous,nav_ack_toggle,nav_idle;
 wire menu_picture_toggle,menu_picture_ack,picture_select_toggle,picture_select_ack;
 wire [2:0] menu_picture_index,picture_select_index,picture_candidate;
 wire [2:0] current_picture_sd,picture_count_sd;
+wire catalog_showcase_sd,catalog_ready_sd,catalog_tracks_sd;
 reg [2:0] current_picture_pixel,picture_count_pixel;
+reg catalog_showcase_pixel,catalog_ready_pixel,catalog_tracks_pixel;
 wire picture_state_toggle,picture_idle;
 reg picture_state_valid,picture_capture_pending,picture_state_seen;
 (* async_reg="true" *) reg [2:0] picture_state_sync;
@@ -120,12 +122,14 @@ always @(posedge video_clk or posedge rst_all)begin
     if(rst_all)begin
         picture_state_sync<=0;picture_state_seen<=0;picture_capture_pending<=0;
         current_picture_pixel<=0;picture_count_pixel<=0;picture_state_valid<=0;
+        catalog_showcase_pixel<=0;catalog_ready_pixel<=0;catalog_tracks_pixel<=0;
     end else begin
         picture_state_sync<={picture_state_sync[1:0],picture_state_toggle};
         if(picture_state_sync[2]!=picture_state_seen)begin
             picture_state_seen<=picture_state_sync[2];picture_capture_pending<=1;
         end else if(picture_capture_pending)begin
             current_picture_pixel<=current_picture_sd;picture_count_pixel<=picture_count_sd;
+            catalog_showcase_pixel<=catalog_showcase_sd;catalog_ready_pixel<=catalog_ready_sd;catalog_tracks_pixel<=catalog_tracks_sd;
             picture_capture_pending<=0;picture_state_valid<=1;
         end
     end
@@ -264,7 +268,7 @@ end
 sd_card_bmp #(
     .CLK_FREQ_HZ       (50_000_000),
     .CANVAS_WIDTH(640),.CANVAS_HEIGHT(360),.TITLE_STREAM(1),
-    .FIXED_IMAGE_MAP(1),.IMAGE_SECTOR0(32'd2252832),.IMAGE_SECTOR1(32'd2258240),.IMAGE_SECTOR2(32'd2263648),.IMAGE_SECTOR3(32'd2265472),.IMAGE_SECTOR4(32'd2274496),.IMAGE_SECTOR5(32'd2286656),
+    // Pictures and soundtrack come from the TF card root catalog (root_catalog.vh).
     .ENABLE_IMAGE_CACHE(1),
     .ENABLE_TEXT       (0),.SHOWCASE_TRACK_ORDER(1),
     .ENABLE_MUSIC      (1),
@@ -288,7 +292,8 @@ sd_card_bmp #(
     .nav_toggle(nav_toggle),.nav_previous(nav_previous),.nav_ack_toggle(nav_ack_toggle),
     .picture_select_toggle(picture_select_toggle),.picture_select_index(picture_select_index),
     .picture_select_ack(picture_select_ack),.current_picture_index(current_picture_sd),
-    .picture_count(picture_count_sd),.picture_state_toggle(picture_state_toggle),.picture_idle(picture_idle),
+    .picture_count(picture_count_sd),.catalog_showcase(catalog_showcase_sd),.catalog_ready(catalog_ready_sd),.catalog_tracks(catalog_tracks_sd),
+    .picture_state_toggle(picture_state_toggle),.picture_idle(picture_idle),
     .static_enable(static_loader_allowed),.auto_enable(auto_enable && static_mode),
     .auto_toggle(auto_toggle),.auto_sequence(auto_sequence),.auto_ack_toggle(auto_ack_toggle),
     .frame_metadata(frame_metadata),.loader_busy(loader_busy),
@@ -375,6 +380,7 @@ player_menu_control #(.ENABLE_TRACKS(1),.ENABLE_SCENE(1),.ENABLE_PICTURES(1),.SH
     .clk(video_clk),.rst(rst_all),.key_enter_n(key1),.key_next_n(key3),.key_prev_n(key2),
     .sw_auto(sw[0]),.sw_menu(sw[1]),.sw_scene(sw[2]),.nav_ack_toggle(nav_ack_toggle),.nav_hold(scene_hold),
     .current_picture_index(current_picture_pixel),.picture_count(picture_count_pixel),
+    .catalog_showcase(catalog_showcase_pixel),.catalog_ready(catalog_ready_pixel),.catalog_tracks(catalog_tracks_pixel),
     .picture_select_toggle(menu_picture_toggle),.picture_select_index(menu_picture_index),
     .picture_select_ack(menu_picture_ack),.picture_candidate(picture_candidate),
     .tracks_ready(tracks_ready_pixel),.track_mask(track_mask_pixel),.active_track(active_track_pixel),
@@ -417,6 +423,7 @@ video_adjust_osd_cn #(.EXTERNAL_UI(1),.SUBTITLE_TOP(320),.SHOWCASE_CN(1)) u_adju
     .text_clk(sd_card_clk), .text_we(text_we), .text_addr(text_addr), .text_data(text_data),
     .text_done(text_done), .text_status(text_status), .text_length(text_length),
     .subtitle_picture_bank(video_read_bank),.subtitle_scene(scene_active),
+    .subtitle_catalog_ok(catalog_showcase_pixel && catalog_ready_pixel),
     .subtitle_glyph(subtitle_glyph),.subtitle_row(subtitle_row),
     .subtitle_font_q(subtitle_font_q),.subtitle_font_hi_q(subtitle_font_hi_q),
     .in_hs(scene_hs), .in_vs(scene_vs), .in_de(scene_de), .in_rgb(scene_data),.in_picture(scene_picture),
@@ -555,6 +562,7 @@ player_menu_overlay #(.ENABLE_TRACKS(1),.ENABLE_SCENE(1),.ENABLE_PICTURES(1),.US
     .brightness_level(brightness_frame),.volume_level(volume_frame),.contrast_level(contrast_frame),
     .subtitle_enable(subtitle_frame),.visual_enable(visual_frame),.period_select(period_frame),
     .tracks_ready(tracks_ready_menu),.track_mask(track_mask_menu),.track_status(track_status_menu),.track_title(selected_title),
+    .catalog_showcase(catalog_showcase_pixel),.catalog_ready(catalog_ready_pixel),.catalog_tracks(catalog_tracks_pixel),
     .raw_titles(1240'd0),.raw_track_index(track_index_menu),
     .title_we(title_we),.title_address(title_address),.title_data(title_data),
     .in_hs(status_hs),.in_vs(status_vs),.in_de(status_de),.in_rgb(status_rgb),

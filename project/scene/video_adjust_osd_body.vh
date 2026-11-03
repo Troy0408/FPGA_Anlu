@@ -101,8 +101,8 @@ always @(posedge clk or posedge reset) begin
             text_length_frame<=SHOWCASE_CN ? showcase_message_length(subtitle_selection) : text_length_pending;
             text_status_frame<=text_status_pending;
             if(SHOWCASE_CN) subtitle_selection_frame<=subtitle_selection;
-            subtitle_frame<=EXTERNAL_UI ? subtitle_switch : input_stable[4];
-            if(!(EXTERNAL_UI ? subtitle_switch : input_stable[4]) || !subtitle_frame ||
+            subtitle_frame<=(EXTERNAL_UI ? subtitle_switch : input_stable[4]) && (subtitle_scene || subtitle_catalog_ok);
+            if(!(EXTERNAL_UI ? subtitle_switch : input_stable[4]) || !(subtitle_scene || subtitle_catalog_ok) || !subtitle_frame ||
                (SHOWCASE_CN ? subtitle_selection_frame!=subtitle_selection : text_length_frame!=text_length_pending) || text_length_frame==0)
                 scroll_offset<=-14'sd640;
             else if(scroll_offset+SCROLL_STEP >= $signed(text_width)) scroll_offset<=-14'sd640;
