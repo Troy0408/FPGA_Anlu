@@ -1,8 +1,9 @@
 """Read-only FAT32/contiguous BMP audit; never writes the volume or media.
 
-Use --directory SHOW720 after authorized file staging. Physical SD LBAs include
-the BPB hidden-sector offset. Existing root files remain outside the new scan
-window, so a candidate need not delete or overwrite the old four BMPs/music.
+The default audits files in the root used by the current FPGA catalog.
+--directory optionally inspects a legacy subdirectory. Physical SD LBAs include
+the BPB hidden-sector offset; physical ordering is diagnostic, while playback
+uses directory order (or N01..N06 order for the complete showcase picture set).
 """
 import argparse,hashlib,json,re,struct
 from pathlib import Path
@@ -69,6 +70,8 @@ def main():
     bmps=sorted([e for e in files if e['name'].endswith('.BMP')],key=lambda e:e['first_card_lba'])
     record={'read_only':True,'drive':a.drive,'directory':a.directory,'bytes_per_sector':512,
         'sectors_per_cluster':fs.spc,'hidden_sectors':fs.hidden,'total_volume_sectors':fs.total,'files':files,
+        'bmp_directory_order':[e['name'] for e in files if e['name'].endswith('.BMP')],
+        'wav_directory_order':[e['name'] for e in files if e['name'].endswith('.WAV')],
         'bmp_physical_order':[e['name'] for e in bmps],
         'all_bmp_contiguous':bool(bmps) and all(e['contiguous'] for e in bmps)}
     if bmps:record['scan_start_sector']=bmps[0]['first_card_lba'];record['scan_max_sector']=max(e['last_card_lba'] for e in bmps)

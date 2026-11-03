@@ -4,12 +4,12 @@
 系统以 EG4S20 FPGA 为核心，构建“素材输入—处理—缓存—合成—输出”的全硬件音画链路，由输入与控制、图片处理、音频处理、动态场景、帧缓存和 HDMI 输出六个子系统组成（图\ref{fig:architecture}）。
 
 \begin{enumerate}
-\item \textbf{输入与控制子系统}：作为“交互入口”，对按键和拨码开关做同步与消抖，按当前模式将事件路由到菜单、切图或场景控制。
-\item \textbf{图片处理子系统}：作为“图像入口”，从 TF 卡读取 BMP 文件，解析文件头，完成等比双线性缩放与居中补黑。
-\item \textbf{音频处理子系统}：作为“声音入口”，解析 WAV 文件得到 48 kHz 立体声 PCM，完成音量渐变，并同时送往 HDMI 音频通道和可视化逻辑。
-\item \textbf{帧缓存子系统}：作为“数据中转站”，以 SDRAM 六帧缓存解耦读卡速率与显示速率，配合受控刷新调度保证读写连续。
-\item \textbf{动态场景子系统}：作为“数字艺术引擎”，根据像素坐标、季节和时间实时生成四季夜城画面。
-\item \textbf{图层合成与 HDMI 输出子系统}：作为“输出终端”，叠加转场、字幕、音频柱和菜单，将 $640\times360$ 画布倍扫为 720p60，并与音频一起封装为 HDMI 信号。
+\item \textbf{输入与控制子系统}：对按键和拨码开关做同步与消抖，按当前模式把事件交给菜单、切图或场景控制。
+\item \textbf{图片处理子系统}：查找 TF 卡根目录中的 BMP 文件，解析文件头，完成等比双线性缩放与居中补黑。
+\item \textbf{音频处理子系统}：解析 WAV 文件得到 48 kHz 立体声 PCM，完成音量渐变，再同时送往 HDMI 音频通道和可视化逻辑。
+\item \textbf{帧缓存子系统}：以 SDRAM 六帧缓存隔开读卡速率与显示速率，配合受控刷新调度保证读写连续。
+\item \textbf{动态场景子系统}：根据像素坐标、季节和时间实时生成四季夜城画面。
+\item \textbf{图层合成与 HDMI 输出子系统}：叠加转场、字幕、音频柱和菜单，将 $640\times360$ 画布倍扫为 720p60，并与音频一起封装为 HDMI 信号。
 \end{enumerate}
 
 \begin{figure}[H]\centering
@@ -75,7 +75,7 @@ HDMI\_CLK\_P & C3 & LVDS33 & TMDS 时钟通道\\
 \end{center}
 
 \subsubsection{时钟系统}
-EG4S20 共有 4 个 PLL，本设计全部使用。板载 50 MHz 时钟输入后分为三路：\texttt{sys\_pll} 产生 50 MHz 卡访问时钟、40 MHz 存储时钟及 SDRAM 相移时钟；\texttt{video\_pll} 产生 25 MHz 画面合成时钟；\texttt{hd720\_ref27} 先生成 27 MHz 参考，再由 \texttt{hd720\_video\_pll} 级联产生 74.25 MHz 像素时钟和约 371 MHz 的五倍频串行时钟。两级级联让 720p 标准像素频率可以精确得到。
+EG4S20 共有 4 个 PLL，本设计全部使用。板载 50 MHz 时钟输入后分为三路：\texttt{sys\_pll} 产生 50 MHz 卡访问时钟、40 MHz 存储时钟及 SDRAM 相移时钟；\texttt{video\_pll} 产生 25 MHz 画面合成时钟；\texttt{hd720\_ref27} 先生成 27 MHz 参考，再由 \texttt{hd720\_video\_pll} 级联产生 74.25 MHz 像素时钟和约 371 MHz 的五倍频串行时钟。两级级联可以精确得到 720p 标准像素频率。
 
 \begin{figure}[H]\centering
 \begin{tikzpicture}[node distance=5mm and 9mm,box/.style={draw,rounded corners,align=center,minimum width=2.5cm,minimum height=0.75cm,fill=blue!5},clk/.style={draw,align=left,minimum width=4.6cm,minimum height=0.6cm,fill=orange!8,font=\small},arr/.style={-{Latex},thick}]
@@ -102,11 +102,11 @@ EG4S20 共有 4 个 PLL，本设计全部使用。板载 50 MHz 时钟输入后�
 \begin{tabular}{p{3.6cm}p{2.0cm}p{2.6cm}p{2.3cm}p{2.3cm}}
 \toprule
 时钟域 & 约束频率 & 可达频率 & setup 余量 & hold 余量\\\midrule
-TF 访问 & 50 MHz & 55.6 MHz & +0.868 ns & +0.027 ns\\
-画面合成 & 25 MHz & 28.7 MHz & +1.658 ns & +0.027 ns\\
-SDRAM 存储 & 40 MHz & 45.5 MHz & +1.456 ns & +0.035 ns\\
-720p 像素 & 74.25 MHz & 105.2 MHz & +3.960 ns & +0.004 ns\\
-TMDS 串行 & 371.3 MHz & 497.3 MHz & +0.682 ns & +0.162 ns\\
+TF 访问 & 50 MHz & 52.3 MHz & +0.440 ns & +0.037 ns\\
+画面合成 & 25 MHz & 30.3 MHz & +1.855 ns & +0.103 ns\\
+SDRAM 存储 & 40 MHz & 45.5 MHz & +1.456 ns & +0.214 ns\\
+720p 像素 & 74.25 MHz & 98.9 MHz & +3.352 ns & +0.030 ns\\
+TMDS 串行 & 371.3 MHz & 428.1 MHz & +0.357 ns & +0.189 ns\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -128,7 +128,7 @@ TMDS 串行 & 371.3 MHz & 497.3 MHz & +0.682 ns & +0.162 ns\\
 \node[grp] (g4) at (3,-1.4) {音频层};
 \node[grp] (g5) at (6,-1.4) {控制层};
 \foreach \g in {g1,g2,g3,g4,g5} \draw[arr](t.south)--(\g.north);
-\node[leaf,below=3mm of g1] {sd\_card\_bmp\\ sd\_card\_top\\ bmp\_read\\ stream\_scaler\\ music\_track\\ \quad\_player\\ wav\_pcm\_decode};
+\node[leaf,below=3mm of g1] {sd\_card\_bmp\\ sd\_card\_top\\ root\_media\\ \quad\_catalog\\ bmp\_read\\ stream\_scaler\\ music\_track\\ \quad\_player\\ wav\_pcm\_decode};
 \node[leaf,below=3mm of g2] {frame\_read\_write\\ wfifo／rfifo\\ sdram\\ sdram\_refresh\\ \quad\_control};
 \node[leaf,below=3mm of g3] {image\_fade\\ \quad\_transition\\ night\_city\_scene\\ video\_adjust\_osd\\ player\_menu\\ \quad\_overlay\\ hd720\_composite\\ \quad\_scanout};
 \node[leaf,below=3mm of g4] {music\_pcm\_output\\ pcm\_volume\_slew\\ music\_rhythm\\ \quad\_overlay\\ audio\_arc\\ \quad\_calculate\\ hdmi\_1\_4b\_tx\\ hd720\_phy};
@@ -168,7 +168,7 @@ TMDS 串行 & 371.3 MHz & 497.3 MHz & +0.682 ns & +0.162 ns\\
 复位同样按域处理：全局复位由按键 KEY1 和 PLL 锁定信号共同产生，各时钟域在本域时钟下经三级同步后释放，保证复位撤销沿与本域时钟对齐。
 
 \subsubsection{图片读取与等比缩放模块}
-\paragraph{模块功能。}\texttt{sd\_card\_bmp} 是素材服务的顶层：它在 TF 卡初始化完成后按图片清单依次加载六幅 BMP，同时为音乐播放器分配扇区读取机会；\texttt{bmp\_read} 解析文件头、按行读取像素并送入缩放核，输出的画布像素经写 FIFO 进入 SDRAM。底层 SPI 控制器在初始化阶段以低速工作，进入数据阶段后切换到 $50/4=12.5$ MHz 高速时钟。
+\paragraph{模块功能。}\texttt{sd\_card\_bmp} 是素材服务的顶层：TF 卡初始化完成后，根目录扫描模块 \texttt{root\_media\_catalog} 先查找图片与音乐，随后它按目录顺序加载最多六幅 BMP，同时为音乐播放器分配扇区读取机会；\texttt{bmp\_read} 解析文件头、按行读取像素并送入缩放核，输出的画布像素经写 FIFO 进入 SDRAM。底层 SPI 控制器在初始化阶段以低速工作，进入数据阶段后切换到 $50/4=12.5$ MHz 高速时钟。
 
 \begin{center}\small
 \begin{tabular}{>{\raggedright\arraybackslash\ttfamily\footnotesize}p{6.0cm}C{1.0cm}C{1.6cm}>{\raggedright\arraybackslash}p{4.7cm}}
@@ -192,6 +192,8 @@ SD\_MISO & 1 & Input & SPI 数据输入\\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\paragraph{根目录查找。}\texttt{root\_media\_catalog} 解析 FAT32 引导扇区，得到 FAT 区、数据区和根目录簇的位置，然后沿 FAT 链一次扫描根目录，按目录顺序记录最多六个 BMP 和五个 WAV。登记前，模块逐字节检查 BMP 文件头的标识、宽高、位深和压缩类型，以及 WAV 的 RIFF 结构和声明长度；播放时按相对文件起点的扇区偏移寻址，因此还要沿 FAT 链确认文件簇连续。格式不符、簇不连续或超出数量的文件被跳过。扫描结果同时给出卡上是否为完整的配套素材：配套图片齐全时按 N01 到 N06 的顺序播放并启用对应字幕，配套曲目齐全时启用菜单选曲；否则图片按目录顺序播放，音乐循环播放第一首有效 WAV，菜单中的对应项显示为灰色。扫描超时或目录异常时，不启用依赖配套素材的功能。
 
 \paragraph{BMP 文件解析。}读取逻辑首先检查文件标识、像素数据偏移、宽高、位深与压缩类型，再按行访问像素。BMP 每行按 4 字节对齐，对宽度为 $W$ 的 RGB24 图像，一行在文件中的字节跨度为
 \begin{equation}
@@ -303,7 +305,7 @@ endcase
 \paragraph{完整帧呈现。}缓存编号从素材域发布到显示域时，加载侧先锁存目标编号，再翻转 \texttt{frame\_ready\_toggle}；显示侧同步令牌后读取稳定的编号，在帧边界完成切换后返回 \texttt{frame\_presented\_toggle}。只有整帧写入完成的缓存才会被发布，观众始终看到完整画面。
 
 \subsubsection{音频播放与 HDMI 音频模块}
-\paragraph{模块功能。}\texttt{music\_track\_player} 在 TF 卡根目录中定位四首曲目，\texttt{wav\_pcm\_decode} 解析 RIFF 结构并输出 16 位双声道样本；\texttt{music\_pcm\_output} 以 4096 样本 FIFO 缓冲数据，并按 48 kHz 节拍释放样本；\texttt{pcm\_volume\_slew} 完成音量调节；最终样本同时送往 HDMI 音频封装和两路可视化逻辑。
+\paragraph{模块功能。}\texttt{music\_track\_player} 使用根目录扫描得到的 WAV 位置，并复用已校验的 FAT32 参数换算簇地址；\texttt{wav\_pcm\_decode} 解析 RIFF 结构并输出 16 位双声道样本；\texttt{music\_pcm\_output} 以 4096 样本 FIFO 缓冲数据，并按 48 kHz 节拍释放样本；\texttt{pcm\_volume\_slew} 完成音量调节；最终样本同时送往 HDMI 音频封装和两路可视化逻辑。
 
 \begin{center}\small
 \begin{tabular}{>{\raggedright\arraybackslash\ttfamily\footnotesize}p{6.0cm}C{1.0cm}C{1.6cm}>{\raggedright\arraybackslash}p{4.7cm}}
@@ -452,7 +454,7 @@ P_{\mathrm{scene}}(x,y,t)=\mathcal{C}\left(T(x,y),L_q, D_q(x,y,t),A(t)\right),
 \end{equation}
 其中 $T$ 为共享图块与材质，$L_q$ 为第 $q$ 个季节的色板，$D_q$ 为随时间变化的天气、灯光和细节，$A$ 为音频驱动的屏幕状态，$\mathcal{C}$ 按遮挡优先级选出最终像素。
 
-\paragraph{三级像素流水。}由于片上 RAM 读出有一拍延迟，场景模块采用提前寻址的三级流水：映射表在像素到达前两拍寻址，图块数据提前一拍寻址，第三拍完成调色板、季节查表和动态层合成。同步信号随像素逐级延迟，保证图层边界与坐标严格对齐。复杂的边界判断与颜色选择分散到不同流水级，使 25 MHz 合成域留有 1.658 ns 的建立时间余量。
+\paragraph{三级像素流水。}由于片上 RAM 读出有一拍延迟，场景模块采用提前寻址的三级流水：映射表在像素到达前两拍寻址，图块数据提前一拍寻址，第三拍完成调色板、季节查表和动态层合成。同步信号随像素逐级延迟，保证图层边界与坐标严格对齐。复杂的边界判断与颜色选择分散到不同流水级，使 25 MHz 合成域留有 1.855 ns 的建立时间余量。
 
 \paragraph{一城四季的视觉组织。}四个场景保留相同的建筑结构、招牌和街道轮廓，观众能在同一地点感受季节与天气的变化。场景名称在进入或切换时显示，帮助观众理解当前画面。下面分别展示各场景的设计画面；天气和灯光在运行时持续变化，单张画面只是其中一个时刻。
 
@@ -512,7 +514,7 @@ P'=\operatorname{clip}_{[0,255]}\!\left(C(P-P_0)+P_0+B\right),
 \begin{equation}
 x=\left\lfloor X/2\right\rfloor,\qquad y=\left\lfloor Y/2\right\rfloor .
 \end{equation}
-合成域每产生一行像素，经像素 FIFO 跨入像素域，写入两个交替使用的行缓存；像素域每行读两遍、每像素重复两次，完成横纵各两倍放大。合成域只在行缓存有空位时才推进下一行，因此两个时钟域之间不需要整帧缓冲。复杂的场景与菜单逻辑留在 25 MHz 域，高频像素域只负责扫描与封装，这是设计能够时序收敛的关键。
+合成域每产生一行像素，经像素 FIFO 跨入像素域，写入两个交替使用的行缓存；像素域每行读两遍、每像素重复两次，完成横纵各两倍放大。合成域只在行缓存有空位时才推进下一行，因此两个时钟域之间不需要整帧缓冲。复杂的场景与菜单逻辑留在 25 MHz 域，高频像素域只负责扫描与封装，这是设计能够时序收敛的主要原因。
 
 \begin{figure}[H]\centering
 \begin{tikzpicture}[node distance=8mm,box/.style={draw,align=center,minimum width=2.4cm,minimum height=0.8cm,fill=blue!5},arr/.style={-{Latex},thick}]
@@ -557,7 +559,7 @@ SW3 & 进入或退出四季动态场景\\
 \end{tabular}
 \end{center}
 
-菜单分两级：一级选择亮度、音量、对比度、滚动字幕、音频可视化、轮播周期、图片选择和音乐选择八项功能，二级调整具体参数。菜单文字使用片上中文字库，当前曲目标题从 TF 卡读取后显示。
+菜单分两级：一级选择亮度、音量、对比度、滚动字幕、音频可视化、轮播周期、图片选择和音乐选择八项功能，二级调整具体参数。菜单文字使用片上中文字库，当前曲目标题从 TF 卡读取后显示。卡上不是完整的配套素材时，“当前图片”“滚动字幕”或“音频选择”以灰色显示且不可进入。
 
 \paragraph{中文滚动字幕。}六幅静图各配一条中文说明，四季场景共用一条，共七条文案、214 个不同汉字。构建时只把实际用到的字形打包进片上 ROM，并为每条消息生成字符序列。字幕的选择由已呈现的图片编号或场景状态决定并在帧边界锁定，因此字幕总与屏幕上的内容一致；切换内容时字幕从起点重新滚动，菜单中可随时开关。
 
@@ -586,7 +588,7 @@ SW3 & 进入或退出四季动态场景\\
 作品优先保证同一镜像中音画连续和多功能共存，在三个关键处做了取舍：
 \begin{itemize}
 \item \textbf{$640\times360$ 画布＋720p 输出}：复杂图层在 25 MHz 合成，像素域只做倍扫，在 EG4S20 的资源与时序条件下同时获得 720p 高清接口和丰富的叠加内容；画布与 16:9 显示器比例一致，无黑边浪费。
-\item \textbf{六帧启动缓存}：启动时一次性加载全部图片，此后切图零读卡等待，并把 TF 卡带宽完整留给音乐播放。
+\item \textbf{六帧启动缓存}：启动时一次性加载全部图片，此后切图不再等待读卡，TF 卡带宽全部留给音乐播放。
 \item \textbf{构建时字库}：只打包实际用到的 214 个汉字，在 RAM 已用满的器件上实现中文字幕和中文菜单。
 \end{itemize}
 
@@ -597,6 +599,7 @@ SW3 & 进入或退出四季动态场景\\
 \begin{tabular}{p{3.0cm}p{6.6cm}p{3.6cm}}
 \toprule
 验证对象 & 验证方法 & 结果\\\midrule
+根目录与文件格式 & 构造 FAT32 镜像，覆盖文件头校验、簇连续性、数量上限、截短 WAV、目录异常、菜单置灰与选曲共 66 项回归 & 全部通过\\
 图片缩放 & $640\times480$ 输入经缩放模型与 RTL 对比 $640\times360$ 画布全部 230400 像素 & 内容区 $480\times360$，最大通道偏差 1\\
 四季场景 & 28 帧 RTL 输出与独立模型逐像素比较，并检查天气变化与音频柱历史 & 逐像素一致\\
 中文字幕 & 核对七条文案、214 个字形像素、帧边界选择与叠加 & 全部通过\\

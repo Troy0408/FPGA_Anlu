@@ -16,3 +16,8 @@ project/sdr_as_ram.enc.v text eol=crlf
 project/sdr_init_ref.enc.v text eol=crlf
 project/sdr_wrrd.enc.v text eol=crlf
 user_source/hdl_source/include/global_def.v text eol=crlf
+*.bit binary
+*.BMP binary
+*.WAV binary
+*.BIN binary
+*.jpg binary
